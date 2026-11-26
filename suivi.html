@@ -20,7 +20,21 @@
   <nav class="contenu large onglets-principaux" id="campagne" aria-label="Campagnes"></nav>
 </header>
 <main class="contenu large" id="app"><p class="etat">Chargement…</p></main>
+<!-- Panneau latéral : la fiche choisie s'ouvre par-dessus le tableau -->
+<div id="tiroir" class="tiroir" hidden>
+  <div class="tiroir-fond" data-fermer-tiroir></div>
+  <aside class="tiroir-panneau" role="dialog" aria-modal="true" aria-labelledby="tTitre">
+    <div class="tiroir-tete">
+      <div><div class="sur">Fiche de renseignement</div><h2 id="tTitre" class="tiroir-titre"></h2><div id="tResume"></div></div>
+      <button class="btn sec" data-fermer-tiroir>✕ Fermer</button>
+    </div>
+    <div id="tAlerte"></div>
+    <div id="tCorps" class="tiroir-corps"></div>
+  </aside>
+</div>
 <script src="pdf-fiches.js"></script>
+<script>window.FORMULAIRE_INTEGRE = { app: document.getElementById("tCorps"), titre: document.getElementById("tTitre"), resume: document.getElementById("tResume") };</script>
+<script src="formulaire.js"></script>
 <script src="suivi.js"></script>
 </body>
 </html>

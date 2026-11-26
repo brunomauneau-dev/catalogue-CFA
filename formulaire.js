@@ -3,8 +3,14 @@
 // laissent voir que sa fiche et ses lignes (formations, contacts, accompagnement).
 // Tables attendues : Fiches, Formations, Contacts, Accompagnement (colonne Fiche = référence), Referentiel.
 // Hors de Grist, la page s'affiche avec des données fictives (démonstration).
+// Intégré au tableau de suivi (window.FORMULAIRE_INTEGRE = { app, titre, resume }) : s'affiche dans le panneau
+// latéral du suivi et s'ouvre par FormulaireFiche.ouvrir(id).
+(function () {
 "use strict";
 
+const INTEGRE = window.FORMULAIRE_INTEGRE || null;
+const elTitre = () => (INTEGRE ? INTEGRE.titre : document.getElementById("titre"));
+const elResume = () => (INTEGRE ? INTEGRE.resume : document.getElementById("resume"));
 const DANS_GRIST = window.parent !== window;
 const CHAMPS_FICHE = [
   ["Etablissement", "Nom de l'établissement"], ["Site", "Site de formation"], ["Adresse", "Adresse"],
@@ -23,7 +29,7 @@ let ATTENTE = false; // formulaire relié au suivi, aucune fiche choisie
 let CHOIX = null; // formation choisie dans le référentiel (le champ est alors verrouillé)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const app = document.getElementById("app");
+const app = INTEGRE ? INTEGRE.app : document.getElementById("app");
 
 // Grist renvoie les tables colonne par colonne : on les remet en lignes.
 function lignes(t) {
@@ -40,7 +46,7 @@ async function charger() {
   // Seules les fiches de la campagne active (Code_actif rempli) ; un établissement n'en voit qu'une.
   FICHES = f.filter(x => x.Code_actif); if (!FICHES.length) FICHES = f;
   REF = re;
-  if (ATTENTE) { REF = re; app.innerHTML = `<p class="info">Cliquez sur un établissement dans le tableau de suivi pour afficher sa fiche ici.</p>`; document.getElementById("titre").textContent = "Fiche de renseignement"; document.getElementById("resume").innerHTML = ""; return; }
+  if (ATTENTE) { REF = re; app.innerHTML = `<p class="info">Cliquez sur un établissement dans le tableau de suivi pour afficher sa fiche ici.</p>`; elTitre().textContent = "Fiche de renseignement"; elResume().innerHTML = ""; return; }
   const garde = FICHE && f.find(x => x.id === FICHE.id); // fiche demandée (ex. depuis le suivi), même d'une autre campagne
   if (garde && !FICHES.includes(garde)) FICHES = [garde, ...FICHES];
   FICHE = garde || FICHES[0] || null;
@@ -57,6 +63,7 @@ async function charger() {
 
 function demo() {
   FICHES = [{ id: 1, Presentation_accompagnement: "Le service accompagne les candidats dans leur recherche d'entreprise (texte fictif).", Etablissement: "CFA Exemple (démonstration)", Site: "Site de Villeneuve", Adresse: "1 rue Imaginaire", Code_postal: "00000", Ville: "Villeneuve", Telephone: "05 00 00 00 00", Mail: "contact@exemple.fr" }];
+  if (INTEGRE) FICHES.push({ id: 2, Etablissement: "Autre CFA (démonstration)" }); // mode SAIO
   FICHE = FICHES[0];
   REF = [["CAP", "Maçon", "Bâtiment, Travaux publics"], ["CAP", "Couvreur", "Bâtiment, Travaux publics"], ["CAP", "Carreleur mosaïste", "Bâtiment, Travaux publics"], ["CAP", "Cuisine", "Hôtellerie, Restauration"], ["Bac pro", "Métiers de l'accueil", "Commerce, Vente, Logistique"]]
     .map(([Diplome, Intitule, Filiere], i) => ({ id: i + 1, Diplome, Intitule, Filiere }));
@@ -129,8 +136,8 @@ function bandeau(id) {
 
 function afficher() {
   const n = nbModifs();
-  document.getElementById("titre").textContent = `Votre fiche — ${FICHE.Etablissement || ""}${FICHE.Site ? ", " + FICHE.Site : ""}`;
-  document.getElementById("resume").innerHTML = (FICHE.Soumise_le ? `<span class="pill">Envoyée</span> ` : "") +
+  elTitre().textContent = `${INTEGRE ? "" : "Votre fiche — "}${FICHE.Etablissement || ""}${FICHE.Site ? ", " + FICHE.Site : ""}`;
+  elResume().innerHTML = (FICHE.Soumise_le ? `<span class="pill">Envoyée</span> ` : "") +
     (n ? `<span class="pill modif">${n} modification${n > 1 ? "s" : ""}</span>` : `<span class="pill">Aucune modification</span>`);
 
   const choix = ""; // la fiche se choisit en cliquant sur l'établissement dans le tableau de suivi
@@ -234,7 +241,7 @@ app.addEventListener("input", e => {
   lab.classList.toggle("change", changeChamp(t, ligne, c));
   lab.querySelector(".invalide").textContent = controle(c, el.value);
   const n = nbModifs();
-  document.getElementById("resume").innerHTML = n ? `<span class="pill modif">${n} modification${n > 1 ? "s" : ""}</span>` : `<span class="pill">Aucune modification</span>`;
+  elResume().innerHTML = n ? `<span class="pill modif">${n} modification${n > 1 ? "s" : ""}</span>` : `<span class="pill">Aucune modification</span>`;
 });
 
 app.addEventListener("change", e => {
@@ -320,7 +327,13 @@ async function enregistrer(soumettre, parSaio) {
   const h = document.getElementById("haut"); if (h) h.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-if (DANS_GRIST) {
+if (INTEGRE) {
+  window.FormulaireFiche = {
+    ouvrir(id) { ATTENTE = false; FICHE = { id }; ORIG = null; MESSAGE = null; MOTIF = ""; CHOIX = null; OUVERTS = new Set(["etab", "contacts"]); return charger(); },
+    modifie() { return !!(ORIG && FICHE && nbModifs()); },
+    rafraichir() { if (FICHE && (!ORIG || !nbModifs())) charger(); },
+  };
+} else if (DANS_GRIST) {
   grist.ready({ requiredAccess: "full" });
   grist.onRecords(() => { if (!ORIG || !nbModifs()) charger(); });
   // Fiche choisie dans le tableau de suivi (widget relié « Sélectionner par »)
@@ -330,4 +343,5 @@ if (DANS_GRIST) {
     ATTENTE = !r; FICHE = r ? { id: r.id } : null; ORIG = r ? ORIG : null; MESSAGE = null; charger();
   });
 }
-charger();
+if (!INTEGRE) charger();
+})();

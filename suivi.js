@@ -398,13 +398,11 @@ document.addEventListener("click", async e => {
   if (d.replier !== undefined) { REPLIES.has(d.replier) ? REPLIES.delete(d.replier) : REPLIES.add(d.replier); return afficher(); }
   if (d.toutDep) { REPLIES = d.toutDep === "replier" ? new Set(D.fiches.map(f => f.Departement || "Sans département")) : new Set(); return afficher(); }
   if (d.dep !== undefined) { FILTRE.dep = d.dep; OUVERTE = null; return afficher(); }
-  if (d.onglet) { ONGLET = d.onglet; choisirCampagne(); OUVERTE = null; VUE = null; MSG = null; PANNEAU = null; FILTRE.etape = ""; FILTRE.retard = false; FILTRE.ch = false; FILTRE.dep = ""; viderSelection(); return afficher(); }
-  if (d.voir) {
-    VUE = +d.voir;
-    if (DANS_GRIST) { try { await grist.setSelectedRows([VUE]); await grist.setCursorPos({ rowId: VUE }); } catch (err) { /* widget non relié */ } }
-    MSG = null;
-    return afficher();
-  }
+  if (d.onglet) { ONGLET = d.onglet; choisirCampagne(); OUVERTE = null; VUE = null; MSG = null; PANNEAU = null; FILTRE.etape = ""; FILTRE.retard = false; FILTRE.ch = false; FILTRE.dep = ""; if (!tiroir.hidden && !window.FormulaireFiche.modifie()) tiroir.hidden = true; return afficher(); }
+  if (d.voir) { VUE = +d.voir; ouvrirTiroir(VUE); return afficher(); }
+  if (d.fermerTiroir !== undefined) return fermerTiroir(false);
+  if (d.fermerQuandMeme !== undefined) return fermerTiroir(true);
+  if (d.resterTiroir !== undefined) { document.getElementById("tAlerte").innerHTML = ""; return; }
   if (d.pdf) return exporterPdf(fiche(d.pdf));
   if (d.ouvrir) { OUVERTE = OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; return afficher(); }
   if (d.envoyer) return envoyer(fiche(d.envoyer), false);
@@ -425,12 +423,27 @@ document.addEventListener("click", async e => {
   }
 });
 
-// Aucune fiche choisie : le formulaire relié affiche une invite au lieu d'une fiche au hasard
-function viderSelection() { if (DANS_GRIST) grist.setSelectedRows([]).catch(() => {}); }
+// ---------- Panneau latéral (fiche ouverte par-dessus le tableau) ----------
+const tiroir = document.getElementById("tiroir");
+function ouvrirTiroir(id) {
+  document.getElementById("tAlerte").innerHTML = "";
+  tiroir.hidden = false;
+  document.getElementById("tCorps").scrollTop = 0;
+  window.FormulaireFiche.ouvrir(id);
+}
+function fermerTiroir(force) {
+  if (tiroir.hidden) return;
+  if (!force && window.FormulaireFiche.modifie()) {
+    document.getElementById("tAlerte").innerHTML = `<div class="bandeau err tiroir-alerte">Des modifications ne sont pas enregistrées.
+      <span class="boutons"><button class="mini" data-rester-tiroir>Continuer la saisie</button><button class="mini" data-fermer-quand-meme>Fermer sans enregistrer</button></span></div>`;
+    return;
+  }
+  tiroir.hidden = true; VUE = null; afficher();
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") fermerTiroir(false); });
 
 if (DANS_GRIST) {
-  grist.ready({ requiredAccess: "full", allowSelectBy: true });
-  viderSelection();
-  grist.onRecords(() => charger());
+  grist.ready({ requiredAccess: "full" });
+  grist.onRecords(() => { charger(); if (!tiroir.hidden) window.FormulaireFiche.rafraichir(); });
 }
 charger();
