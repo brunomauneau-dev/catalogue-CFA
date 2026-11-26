@@ -10,6 +10,7 @@ const CHAMPS_FICHE = [
   ["Etablissement", "Nom de l'établissement"], ["Site", "Site de formation"], ["Adresse", "Adresse"],
   ["Code_postal", "Code postal"], ["Ville", "Ville"], ["Telephone", "Téléphone"], ["Mail", "Mail"], ["Site_internet", "Site internet"],
 ];
+const PRESENTATION = "Presentation_accompagnement"; // texte d'introduction de l'accompagnement (facultatif)
 const CHAMPS_CONTACT = [["Pole", "Pôle ou filière"], ["Nom", "Nom"], ["Telephone", "Téléphone"], ["Mail", "Mail"]];
 
 let FICHES = [], FICHE = null, ORIG = null, REF = [];
@@ -50,7 +51,7 @@ async function charger() {
 }
 
 function demo() {
-  FICHES = [{ id: 1, Etablissement: "CFA Exemple (démonstration)", Site: "Site de Villeneuve", Adresse: "1 rue Imaginaire", Code_postal: "00000", Ville: "Villeneuve", Telephone: "05 00 00 00 00", Mail: "contact@exemple.fr" }];
+  FICHES = [{ id: 1, Presentation_accompagnement: "Le service accompagne les candidats dans leur recherche d'entreprise (texte fictif).", Etablissement: "CFA Exemple (démonstration)", Site: "Site de Villeneuve", Adresse: "1 rue Imaginaire", Code_postal: "00000", Ville: "Villeneuve", Telephone: "05 00 00 00 00", Mail: "contact@exemple.fr" }];
   FICHE = FICHES[0];
   REF = [["CAP", "Maçon", "Bâtiment, Travaux publics"], ["CAP", "Couvreur", "Bâtiment, Travaux publics"], ["CAP", "Carreleur mosaïste", "Bâtiment, Travaux publics"], ["CAP", "Cuisine", "Hôtellerie, Restauration"], ["Bac pro", "Métiers de l'accueil", "Commerce, Vente, Logistique"]]
     .map(([Diplome, Intitule, Filiere], i) => ({ id: i + 1, Diplome, Intitule, Filiere }));
@@ -74,7 +75,7 @@ function changeChamp(table, ligne, champ) {
   return o && String(o[champ] ?? "") !== String(ligne[champ] ?? "");
 }
 function nbModifs() {
-  let n = CHAMPS_FICHE.filter(([c]) => c in ORIG.fiche || FICHE[c]).filter(([c]) => changeChamp("fiche", null, c)).length;
+  let n = [...CHAMPS_FICHE, [PRESENTATION]].filter(([c]) => c in ORIG.fiche || FICHE[c]).filter(([c]) => changeChamp("fiche", null, c)).length;
   for (const t of ["contacts", "formations", "accomp"]) for (const l of ETAT[t]) {
     if (!l.id || l._suppr) { n++; continue; }
     const o = orig(t, l.id);
@@ -181,6 +182,8 @@ function afficher() {
   }).join("");
   const blocAccomp = `<section class="carte"><div class="entete"><h2>Modalités d'accompagnement</h2>
       <span><button class="mini" data-tout="acc:" data-ouvre="1">Tout déplier</button> <button class="mini" data-tout="acc:" data-ouvre="">Tout replier</button></span></div>
+    ${PRESENTATION in FICHE ? `<label class="champ${changeChamp("fiche", FICHE, PRESENTATION) ? " change" : ""}">Présentation de votre accompagnement (quelques lignes)
+      <textarea data-t="fiche" data-i="0" data-c="${PRESENTATION}" rows="4">${esc(FICHE[PRESENTATION])}</textarea><span class="invalide"></span></label>` : ""}
     ${groupes}
     <div class="nouvelle"><label class="champ">Autre action proposée<input id="nvAction" placeholder="Décrivez l'action"></label>
       <button class="btn sec" id="ajoutAction">Ajouter cette action</button></div></section>`;
@@ -266,7 +269,7 @@ const COLS = { contacts: ["Pole", "Nom", "Telephone", "Mail"], formations: ["Int
 function actions(soumettre) {
   const a = [];
   const majFiche = {};
-  for (const [c] of CHAMPS_FICHE) if (c in FICHE && changeChamp("fiche", null, c)) majFiche[c] = FICHE[c];
+  for (const [c] of [...CHAMPS_FICHE, [PRESENTATION]]) if (c in FICHE && changeChamp("fiche", null, c)) majFiche[c] = FICHE[c];
   if (soumettre) majFiche.Soumise_le = Date.now() / 1000;
   if (Object.keys(majFiche).length) a.push(["UpdateRecord", "Fiches", FICHE.id, majFiche]);
   for (const t in TABLES) for (const l of ETAT[t]) {

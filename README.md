@@ -35,6 +35,18 @@ Lien_envoye_le, Ouverte_le, Soumise_le, Finalisee_le, Etape_SAIO, Prochaine_acti
 inactive, avec de nouveaux codes et un lien vers la fiche d'origine ; les formations fermées ne sont pas reprises.
 « Activer cette campagne » la rend active : les liens des autres campagnes cessent alors de fonctionner.
 
+## Génération du catalogue (widget Grist)
+
+`catalogue.html` (+ `catalogue.js`, bibliothèque `lib/jspdf.umd.min.js`, licence MIT) : produit le PDF du catalogue
+à partir des fiches de la campagne choisie (fiches finalisées, ou leur dernière version finalisée) :
+couverture, pages d'information, sommaire cliquable par département, page de séparation par département,
+une fiche par établissement (coordonnées et contacts en colonne de côté ; formations par filière et
+modalités d'accompagnement). Les formations fermées n'apparaissent pas.
+
+Pages d'information : table `Pages_catalogue` (Ordre, Titre, Texte, Afficher), modifiables dans le widget ;
+mise en forme : `**gras**`, `- ` liste, `## ` intertitre, `[texte](adresse)`.
+Colonne facultative `Presentation_accompagnement` dans `Fiches` (texte d'introduction de l'accompagnement).
+
 ## Référentiel des intitulés
 
 `referentiel/intitules.json` : référentiel **provisoire**, construit à partir des libellés du catalogue 2026,
