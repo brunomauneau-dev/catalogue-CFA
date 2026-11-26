@@ -133,3 +133,12 @@ table.suivi td:nth-child(2){min-width:150px}
 table.suivi td:last-child{width:1%}
 table.suivi td:last-child .boutons{flex-wrap:nowrap}
 table.suivi tbody tr:not(.dep):not(.detail):hover>td{background:#FAFAFF}
+/* Boutons allégés : contour bleu pour l'action courante, plein réservé à l'urgent (relance en retard, PDF à déposer) */
+.mini.contour{background:#fff;border-color:var(--bleu);color:var(--bleu)}
+.mini.contour:hover{background:var(--bleu-pale)}
+/* Lignes plus compactes */
+table.suivi td{padding:7px 10px}
+tr.dep td{padding:0}
+.dep-pli{padding:6px 10px;min-height:34px}
+table.suivi .mini{min-height:32px;padding:5px 10px}
+.sous.vide{color:#9AA3AF}

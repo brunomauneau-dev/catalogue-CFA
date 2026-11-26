@@ -260,7 +260,7 @@ function ligneClose(f, s) {
   const statut = recue(f) ? "Reçue" : `<span class="sous">non reçue</span>`;
   if (horsDep(nomDep(f))) {
     const depot = `<label class="mini depot-pdf" title="Déposer le PDF ${esc(CAMP_DE(f))} fourni par l'établissement, sans retouche">${pdfDepose(f) ? "Remplacer le PDF" : "Déposer le PDF"}<input type="file" accept="application/pdf" data-depot-pdf="${f.id}" hidden></label>`;
-    return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>PDF fourni par l'établissement</td><td>${statut}</td><td><div class="boutons">${depot}${BOUTON_PDF(f)}</div></td></tr>`;
+    return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>PDF fourni par l'établissement</td><td>${statut}</td><td><div class="boutons">${BOUTON_PDF(f)}${depot}</div></td></tr>`;
   }
   const actions = `<div class="boutons">${BOUTON_PDF(f)}</div>`;
   return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${actions}</td></tr>`;
@@ -279,7 +279,7 @@ function ligne(f, s, close) {
   // GRETA : la fiche est un PDF ; « reçue » = PDF de l'année déposé (bouton « Déposer le PDF »)
   const pdfFourni = horsDep(nomDep(s));
   const nbCh = pdfFourni ? (e === 2 ? `<span class="pill p-ok">PDF ${esc(CAMP_DE(s))} déposé</span>` : `<span class="sous">PDF de l'an dernier</span>`)
-    : ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
+    : ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous vide" title="Aucun changement">—</span>`
     : `<button class="lien-fiche" data-ouvrir="${s.id}" data-vers="changements">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const der = echanges(s)[0];
   const derBrut = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Reçue · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "";
@@ -287,15 +287,15 @@ function ligne(f, s, close) {
   let actions = "";
   if (!close) {
     if (pdfFourni) { // GRETA : on demande le PDF, puis on le dépose tel qu'il est reçu
-      if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Demander le PDF</button>`;
-      if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
+      if (e === 0) actions += `<button class="mini contour" data-envoyer="${s.id}">Demander le PDF</button>`;
+      if (e === 1) actions += `<button class="mini${enRetard(s) ? " prim" : ""}" data-relancer="${s.id}">Relancer</button>`;
       actions += `<label class="mini${e === 1 ? " prim" : ""} depot-pdf" title="Déposer le PDF reçu de l'établissement, sans retouche">${e === 2 ? "Remplacer le PDF" : "Déposer le PDF reçu"}<input type="file" accept="application/pdf" data-depot-pdf="${s.id}" hidden></label>`;
     } else {
-      if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Envoyer</button>`;
-      if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
+      if (e === 0) actions += `<button class="mini contour" data-envoyer="${s.id}">Envoyer</button>`;
+      if (e === 1) actions += `<button class="mini${enRetard(s) ? " prim" : ""}" data-relancer="${s.id}">Relancer</button>`;
     }
   }
-  actions = `<div class="boutons">${actions}${BOUTON_PDF(f, esc(CAMP_DE(f)))}</div>`;
+  actions = `<div class="boutons">${BOUTON_PDF(f, esc(CAMP_DE(f)))}${actions}</div>`;
   return `<tr${sel}><td>${nom}</td>
     <td>${etat}${s.Prochaine_action ? `<span class="sous">→ ${esc(s.Prochaine_action)}</span>` : ""}</td>
     <td>${nbCh}</td><td>${derTxt}</td><td>${actions}</td></tr>`;
