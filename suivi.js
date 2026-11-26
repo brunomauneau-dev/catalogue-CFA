@@ -13,6 +13,7 @@ const JOUR = 86400;
 
 let D = { fiches: [], formations: [], contacts: [], accomp: [], corresp: [], campagnes: [] };
 let CAMP = null, FILTRE = { etape: "", dep: "", texte: "", retard: false }, OUVERTE = null, MSG = null;
+let VUE = null; // fiche affichée dans le formulaire lié
 let PANNEAU = null; // "nouvelle" (préparer la campagne suivante) ou "activer" (confirmation)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -168,7 +169,7 @@ function ligne(f) {
   if (e >= 3 && e < 6) actions += `<button class="mini prim" data-finaliser="${f.id}">Finaliser</button>`;
   if (e === 6) actions += `<button class="mini" data-definaliser="${f.id}">Rouvrir</button>`;
   actions += `<button class="mini" data-ouvrir="${f.id}" aria-expanded="${OUVERTE === f.id}">${OUVERTE === f.id ? "Fermer" : "Détails"}</button>`;
-  return `<tr><td><b>${esc(f.Etablissement)}</b><span class="sous">${esc(f.Site || "")}</span></td>
+  return `<tr${VUE === f.id ? ' class="choisie"' : ""}><td><button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></td>
     <td><div class="etapes">${barres}</div><span class="etiq${enRetard(f) ? " retard" : ""}">${esc(libEtape(e))}${enRetard(f) ? " · sans réponse" : ""}</span></td>
     <td>${nbCh}</td><td>${derTxt}</td><td>${esc(f.Prochaine_action || "")}</td><td><div class="boutons">${actions}</div></td></tr>`;
 }
@@ -330,6 +331,12 @@ document.addEventListener("click", async e => {
   const d = b.dataset, fiche = id => D.fiches.find(f => f.id === +id);
   if (d.filtreEtape !== undefined) { FILTRE.etape = FILTRE.etape === d.filtreEtape ? "" : d.filtreEtape; FILTRE.retard = false; return afficher(); }
   if (d.retard) { FILTRE.retard = !FILTRE.retard; FILTRE.etape = ""; return afficher(); }
+  if (d.voir) {
+    VUE = +d.voir;
+    if (DANS_GRIST) { try { await grist.setSelectedRows([VUE]); await grist.setCursorPos({ rowId: VUE }); } catch (err) { /* widget non relié */ } }
+    MSG = { cl: "ok", txt: `Fiche de ${fiche(d.voir).Etablissement} ouverte dans le formulaire (sur cette page). Si rien ne s'affiche : ajoutez le widget Formulaire à la page, « Sélectionner par » ce tableau.` };
+    return afficher();
+  }
   if (d.ouvrir) { OUVERTE = OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; return afficher(); }
   if (d.envoyer) return envoyer(fiche(d.envoyer), false);
   if (d.relancer) return envoyer(fiche(d.relancer), true);
@@ -356,7 +363,7 @@ document.addEventListener("click", async e => {
 });
 
 if (DANS_GRIST) {
-  grist.ready({ requiredAccess: "full" });
+  grist.ready({ requiredAccess: "full", allowSelectBy: true });
   grist.onRecords(() => charger());
 }
 charger();

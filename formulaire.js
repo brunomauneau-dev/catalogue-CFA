@@ -16,7 +16,8 @@ const CHAMPS_CONTACT = [["Pole", "Pôle ou filière"], ["Fonction", "Fonction"],
 let FICHES = [], FICHE = null, ORIG = null, REF = [];
 let ETAT = { contacts: [], formations: [], accomp: [] };
 let OUVERTS = new Set(["etab", "contacts"]);
-let MESSAGE = null, CERTIF = false;
+let MESSAGE = null, CERTIF = false, MOTIF = "";
+const SAIO = () => FICHES.length > 1; // propriétaire du document : modification par le SAIO
 let CHOIX = null; // formation choisie dans le référentiel (le champ est alors verrouillé)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -37,7 +38,8 @@ async function charger() {
   // Seules les fiches de la campagne active (Code_actif rempli) ; un établissement n'en voit qu'une.
   FICHES = f.filter(x => x.Code_actif); if (!FICHES.length) FICHES = f;
   REF = re;
-  const garde = FICHE && FICHES.find(x => x.id === FICHE.id);
+  const garde = FICHE && f.find(x => x.id === FICHE.id); // fiche demandée (ex. depuis le suivi), même d'une autre campagne
+  if (garde && !FICHES.includes(garde)) FICHES = [garde, ...FICHES];
   FICHE = garde || FICHES[0] || null;
   if (!FICHE) { app.innerHTML = `<p class="alerte">Aucune fiche accessible. Vérifiez que vous avez ouvert le lien complet reçu par mail.</p>`; return; }
   const de = rows => rows.filter(r => r.Fiche === FICHE.id);
@@ -188,7 +190,11 @@ function afficher() {
     <div class="nouvelle"><label class="champ">Autre action proposée<input id="nvAction" placeholder="Décrivez l'action"></label>
       <button class="btn sec" id="ajoutAction">Ajouter cette action</button></div></section>`;
 
-  const envoi = `<section class="carte">
+  const envoi = SAIO() ? `<section class="carte"><h2>Modification par le SAIO</h2>
+    <label class="champ">Origine de la demande (facultatif)<input id="motif" value="${esc(MOTIF)}" placeholder="Ex. : appel du CFA le 12/01, erreur de téléphone"></label>
+    ${bandeau()}
+    <div class="actions"><button class="btn" id="enregistrerSaio">Enregistrer les modifications</button></div>
+    <p class="etat">L'enregistrement est noté dans les correspondances de la fiche.</p></section>` : `<section class="carte">
     <label class="coche"><input type="checkbox" id="certif"${CERTIF ? " checked" : ""}>Je certifie l'exactitude de ces informations.</label>
     ${bandeau()}
     <div class="actions">
@@ -196,7 +202,7 @@ function afficher() {
       <button class="btn" id="envoyer">Envoyer ma fiche</button></div>
     <p class="etat">Rien n'a changé ? Cochez la case et envoyez la fiche telle quelle.</p></section>`;
 
-  app.innerHTML = `${choix}${bandeau("haut")}<p class="info">Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien.</p>
+  app.innerHTML = `${choix}${bandeau("haut")}<p class="info">${SAIO() ? "Mode SAIO : vous modifiez directement la fiche de l'établissement (par exemple à sa demande, par téléphone ou par mail)." : ""} Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien.</p>
     <div class="colonnes"><div class="cote"><section class="carte">${etab}</section><section class="carte">${blocContacts}</section></div>
     <div class="principal">${blocFormations}${blocAccomp}${envoi}</div></div>`;
 }
@@ -228,6 +234,7 @@ app.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixFiche") { FICHE = FICHES.find(f => f.id === +el.value); MESSAGE = null; return charger(); }
   if (el.id === "certif") { CERTIF = el.checked; return; }
+  if (el.id === "motif") { MOTIF = el.value; return; }
   if (el.dataset.coche !== undefined) { ETAT.accomp[+el.dataset.coche].Cochee = el.checked; afficher(); }
 });
 
@@ -245,6 +252,7 @@ app.addEventListener("click", async e => {
     ETAT.accomp.push({ Fiche: FICHE.id, Groupe: "Autres actions", Action: v, Cochee: true }); OUVERTS.add("acc:Autres actions"); return afficher();
   }
   if (b.id === "enregistrer") return enregistrer(false);
+  if (b.id === "enregistrerSaio") return enregistrer(false, true);
   if (b.id === "envoyer") {
     if (!CERTIF) { MESSAGE = { cl: "err", txt: "Cochez la case de certification avant d'envoyer." }; return afficher(); }
     return enregistrer(true);
@@ -283,15 +291,21 @@ function actions(soumettre) {
   return a;
 }
 
-async function enregistrer(soumettre) {
+async function enregistrer(soumettre, parSaio) {
   const a = actions(soumettre);
+  if (parSaio) {
+    if (!a.length) { MESSAGE = { cl: "err", txt: "Aucune modification à enregistrer." }; return afficher(); }
+    a.push(["AddRecord", "Correspondances", null, { Fiche: FICHE.id, Date: Math.floor(Date.now() / 86400000) * 86400, Type: "Note",
+      Objet: "Fiche modifiée par le SAIO", Resume: `${MOTIF ? MOTIF + " — " : ""}${a.length} modification(s) enregistrée(s)` }]);
+  }
   if (!DANS_GRIST) {
     MESSAGE = { cl: "ok", txt: soumettre ? `Fiche envoyée au SAIO. Merci ! (démonstration : ${a.length} changement(s))` : `Enregistré (démonstration : ${a.length} changement(s)).` };
     afficher(); const h = document.getElementById("haut"); if (h) h.scrollIntoView({ block: "start" }); return;
   }
   try {
     if (a.length) await grist.docApi.applyUserActions(a);
-    MESSAGE = { cl: "ok", txt: soumettre ? "Fiche envoyée au SAIO. Merci ! Vous pouvez encore la corriger avec le même lien." : "Enregistré. Vous pouvez revenir plus tard avec le même lien." };
+    MESSAGE = { cl: "ok", txt: parSaio ? "Modifications enregistrées et notées dans les correspondances." : soumettre ? "Fiche envoyée au SAIO. Merci ! Vous pouvez encore la corriger avec le même lien." : "Enregistré. Vous pouvez revenir plus tard avec le même lien." };
+    if (parSaio) MOTIF = "";
     await charger();
   } catch (err) {
     MESSAGE = { cl: "err", txt: "L'enregistrement a été refusé : " + (err && err.message ? err.message : err) };
@@ -303,5 +317,11 @@ async function enregistrer(soumettre) {
 if (DANS_GRIST) {
   grist.ready({ requiredAccess: "full" });
   grist.onRecords(() => { if (!ORIG || !nbModifs()) charger(); });
+  // Fiche choisie dans le tableau de suivi (widget relié « Sélectionner par »)
+  grist.onRecord(r => {
+    if (!r || (FICHE && r.id === FICHE.id)) return;
+    if (ORIG && nbModifs()) { MESSAGE = { cl: "err", txt: "Des modifications ne sont pas enregistrées : enregistrez-les avant d'ouvrir une autre fiche." }; return afficher(); }
+    FICHE = { id: r.id }; MESSAGE = null; charger();
+  });
 }
 charger();
