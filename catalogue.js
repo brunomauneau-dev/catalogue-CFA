@@ -3,15 +3,20 @@
 // page de séparation par département, puis une fiche par établissement (formations fermées exclues).
 // Bibliothèque jsPDF (lib/, licence MIT), chargée au moment de la génération.
 // Hors de Grist, la page s'affiche avec des données fictives (démonstration).
+// Intégré au tableau de suivi (window.CATALOGUE_INTEGRE = { app }) : troisième onglet du suivi,
+// affiché par CatalogueOnglet.afficher().
+(function () {
 "use strict";
 
+const INTEGRE = window.CATALOGUE_INTEGRE || null;
 const DANS_GRIST = window.parent !== window;
 let D = { fiches: [], formations: [], contacts: [], accomp: [], campagnes: [], pages: [] };
 let CAMP = null, MODE = "derniere", MSG = null, OUVERTES = new Set();
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const lignes = t => !t || !t.id ? [] : t.id.map((id, i) => { const r = { id }; for (const k in t) r[k] = t[k][i]; return r; });
-const app = document.getElementById("app");
+const app = INTEGRE ? INTEGRE.app : document.getElementById("app");
+const racine = INTEGRE ? INTEGRE.app : document; // écouteurs limités au catalogue quand il est intégré
 
 // ---------- Chargement ----------
 async function charger() {
@@ -60,8 +65,10 @@ function parDepartement(fiches) {
 
 // ---------- Écran ----------
 function afficher() {
-  document.getElementById("campagne").innerHTML = `<select id="choixCampagne" aria-label="Campagne" style="width:auto">${D.campagnes.map(c => `<option value="${c.id}"${CAMP && c.id === CAMP.id ? " selected" : ""}>Campagne ${esc(c.Annee)}${c.Active ? " (active)" : ""}</option>`).join("")}</select>`;
+  const selCampagne = `<select id="choixCampagne" aria-label="Campagne" style="width:auto">${D.campagnes.map(c => `<option value="${c.id}"${CAMP && c.id === CAMP.id ? " selected" : ""}>Campagne ${esc(c.Annee)}${c.Active ? " (active)" : ""}</option>`).join("")}</select>`;
+  if (!INTEGRE) document.getElementById("campagne").innerHTML = selCampagne;
   if (!CAMP) { app.innerHTML = `<p class="alerte">Aucune campagne.</p>`; return; }
+  const enTeteIntegre = INTEGRE ? `<div class="filtres"><span class="etat">Catalogue de la campagne</span>${selCampagne}</div>` : "";
   const toutes = D.fiches.filter(f => f.Campagne === CAMP.id), ret = fichesRetenues();
   const groupes = parDepartement(ret);
   const lignesDep = groupes.map(([d, l]) => `<div class="diff"><span class="nomgrp">${esc(d)}</span><span class="pill">${l.length} fiche${l.length > 1 ? "s" : ""}</span></div>`).join("");
@@ -76,14 +83,14 @@ function afficher() {
         <div class="boutons"><button class="mini prim" data-enregistrer="${p.id}">Enregistrer cette page</button><button class="mini" data-supprimer="${p.id}">Supprimer</button></div>
       </div></details>`).join("");
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
-  app.innerHTML = `${bandeau}<div class="colonnes">
+  app.innerHTML = `${enTeteIntegre}${bandeau}<div class="colonnes">
     <div class="principal">
       <section class="carte"><h2>Fiches du catalogue ${esc(CAMP.Annee)}</h2>
         <p class="etat">${toutes.length} fiche(s) dans la campagne, dont ${toutes.filter(f => f.Finalisee_le).length} finalisée(s). ${ret.length} retenue(s) pour le catalogue.</p>
         <label class="coche"><input type="radio" name="mode" value="derniere"${MODE === "derniere" ? " checked" : ""}>Fiches non finalisées : reprendre leur dernière version finalisée (sinon les laisser hors du catalogue)</label>
         <label class="coche"><input type="radio" name="mode" value="actuelle"${MODE === "actuelle" ? " checked" : ""}>Prendre toutes les fiches telles quelles, même non finalisées (version de travail)</label>
         ${lignesDep || `<p class="etat">Aucune fiche retenue.</p>`}
-        <p class="etat">Ordre : « ${TOUS} » d'abord, puis les départements, et dans chacun les établissements par ordre alphabétique. Les formations « Fermée » n'apparaissent pas.</p>
+        <p class="etat">Ordre : par département, puis par établissement (ordre alphabétique). Les formations « Fermée » n'apparaissent pas.</p>
       </section>
       <section class="carte"><div class="entete"><h2>Pages d'information</h2><button class="mini" id="ajoutPage">+ Ajouter une page</button></div>
         <p class="etat">Placées après la couverture. Mise en forme : <b>**gras**</b>, liste avec « - » en début de ligne, intertitre avec « ## », lien avec [texte](adresse).</p>
@@ -122,12 +129,12 @@ async function appliquer(actions, txt) {
   catch (err) { MSG = { cl: "err", txt: "Refusé : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 app.addEventListener("toggle", e => { const d = e.target; if (d.dataset && d.dataset.pli) d.open ? OUVERTES.add(+d.dataset.pli) : OUVERTES.delete(+d.dataset.pli); }, true);
-document.addEventListener("change", e => {
+racine.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixCampagne") { CAMP = D.campagnes.find(c => c.id === +el.value); MSG = null; return afficher(); }
   if (el.name === "mode") { MODE = el.value; return afficher(); }
 });
-document.addEventListener("click", e => {
+racine.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset;
   if (b.id === "generer") { b.disabled = true; b.textContent = "Génération…"; return generer(); }
@@ -149,8 +156,13 @@ document.addEventListener("click", e => {
   }
 });
 
-if (DANS_GRIST) {
-  grist.ready({ requiredAccess: "full" });
-  grist.onRecords(() => charger());
+if (INTEGRE) {
+  window.CatalogueOnglet = { afficher: () => charger(), rafraichir: () => charger() };
+} else {
+  if (DANS_GRIST) {
+    grist.ready({ requiredAccess: "full" });
+    grist.onRecords(() => charger());
+  }
+  charger();
 }
-charger();
+})();

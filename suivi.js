@@ -130,8 +130,13 @@ function afficher() {
   document.getElementById("campagne").innerHTML = `<div class="onglets-p" role="tablist">
       <button role="tab" data-onglet="encours" aria-selected="${ONGLET === "encours"}">Campagne en cours${active ? " " + esc(active.Annee) : ""}</button>
       <button role="tab" data-onglet="closes" aria-selected="${ONGLET === "closes"}">Campagnes closes${closes.length ? " (" + closes.map(c => esc(c.Annee)).join(", ") + ")" : ""}</button>
+      <button role="tab" data-onglet="catalogue" aria-selected="${ONGLET === "catalogue"}">Catalogue</button>
       ${ONGLET === "closes" && closes.length > 1 ? `<select id="choixArchive" aria-label="Campagne close" style="width:auto;margin-left:auto">${closes.map(c => `<option value="${c.id}"${ARCH && c.id === ARCH.id ? " selected" : ""}>${esc(c.Annee)}</option>`).join("")}</select>` : ""}</div>`;
   document.getElementById("actionsCampagne").innerHTML = `<button class="mini" data-panneau="nouvelle" style="visibility:${ONGLET === "encours" ? "visible" : "hidden"}">Préparer une nouvelle campagne</button>`;
+  // Onglet « Catalogue » : génération du PDF (catalogue.js intégré)
+  const appCat = document.getElementById("appCatalogue");
+  app.hidden = ONGLET === "catalogue"; appCat.hidden = ONGLET !== "catalogue";
+  if (ONGLET === "catalogue") { if (!appCat.dataset.charge) { appCat.dataset.charge = "1"; window.CatalogueOnglet.afficher(); } return; }
   if (!camp) {
     app.innerHTML = ONGLET === "closes" ? `<p class="etat">Aucune campagne close.</p>`
       : `<p class="alerte">Aucune campagne en cours.</p>${closes.map(c => `<button class="mini prim" data-activer="${c.id}">Activer la campagne ${esc(c.Annee)}</button> `).join("")}`;
@@ -444,6 +449,10 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") fermerTiroir
 
 if (DANS_GRIST) {
   grist.ready({ requiredAccess: "full" });
-  grist.onRecords(() => { charger(); if (!tiroir.hidden) window.FormulaireFiche.rafraichir(); });
+  grist.onRecords(() => {
+    charger();
+    if (!tiroir.hidden) window.FormulaireFiche.rafraichir();
+    if (ONGLET === "catalogue") window.CatalogueOnglet.rafraichir();
+  });
 }
 charger();

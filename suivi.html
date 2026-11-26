@@ -20,6 +20,7 @@
   <nav class="contenu large onglets-principaux" id="campagne" aria-label="Campagnes"></nav>
 </header>
 <main class="contenu large" id="app"><p class="etat">Chargement…</p></main>
+<main class="contenu large" id="appCatalogue" hidden></main>
 <!-- Panneau latéral : la fiche choisie s'ouvre par-dessus le tableau -->
 <div id="tiroir" class="tiroir" hidden>
   <div class="tiroir-fond" data-fermer-tiroir></div>
@@ -35,6 +36,8 @@
 <script src="pdf-fiches.js"></script>
 <script>window.FORMULAIRE_INTEGRE = { app: document.getElementById("tCorps"), titre: document.getElementById("tTitre"), resume: document.getElementById("tResume") };</script>
 <script src="formulaire.js"></script>
+<script>window.CATALOGUE_INTEGRE = { app: document.getElementById("appCatalogue") };</script>
+<script src="catalogue.js"></script>
 <script src="suivi.js"></script>
 </body>
 </html>

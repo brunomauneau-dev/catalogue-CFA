@@ -31,8 +31,11 @@ Hors de Grist, la page s'affiche avec des données fictives (démonstration).
 Les deux onglets ont la même présentation : sous-onglets par département (« Toutes les fiches » par défaut), filtre d'étape, recherche, « avec changements », « sans réponse ».
 Chaque ligne a un bouton « PDF » qui télécharge la fiche avec la mise en page du catalogue (moteur commun `pdf-fiches.js`).
 
-Un clic sur un établissement ouvre sa fiche dans le formulaire placé sur la même page (« Sélectionner par » le suivi) :
-le SAIO peut la corriger (mode SAIO, modification notée dans les correspondances) ; une fiche close est en lecture seule.
+Un clic sur un établissement ouvre sa fiche dans un panneau latéral (formulaire intégré, `window.FORMULAIRE_INTEGRE`) :
+le SAIO peut la corriger (modification notée dans les correspondances) ; une fiche close est en lecture seule.
+« ✕ Fermer » ou Échap referme le panneau (alerte si des modifications ne sont pas enregistrées).
+
+Troisième onglet « Catalogue » : génération du PDF (catalogue intégré, `window.CATALOGUE_INTEGRE`).
 
 Dans Grist : Widget personnalisé → URL `…/suivi.html`, données : table *Fiches*, accès complet.
 Tables utilisées en plus : `Campagnes` (Annee, Date_limite, Active, URL_formulaire), `Correspondances`
