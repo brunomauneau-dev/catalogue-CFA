@@ -153,11 +153,25 @@ function afficher() {
     <button role="tab" data-dep="" aria-selected="${!FILTRE.dep}">Toutes les fiches <span>${lignes.length}</span></button>
     ${deps.map(d => `<button role="tab" data-dep="${esc(d)}" aria-selected="${FILTRE.dep === d}">${esc(d)} <span>${nbDep(d)}</span></button>`).join("")}</div>`;
   const filtres = `<div class="filtres">
-    ${close ? "" : `<select id="fEtape" aria-label="Étape">${ETATS.map(([v, lib]) => `<option value="${v}"${FILTRE.etape === v ? " selected" : ""}>${lib} (${v === "" ? dansDep().length : n(v)})</option>`).join("")}</select>`}
     <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
-    <button class="puce-filtre" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}">Avec changements · ${nbChg()}</button>
-    ${close ? "" : `<button class="puce-filtre${nbRetard() ? " alerte-filtre" : ""}" data-retard="1" aria-pressed="${FILTRE.retard}">Sans réponse depuis 7 j · ${nbRetard()}</button>`}
+    ${close ? `<button class="puce-filtre" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}">Avec changements · ${nbChg()}</button>` : ""}
     ${FILTRE.dep ? "" : `<span class="boutons" style="margin-left:auto"><button class="mini" data-tout-dep="ouvrir">Tout déplier</button><button class="mini" data-tout-dep="replier">Tout replier</button></span>`}</div>`;
+  // Récapitulatif de la campagne (marge de droite) : chaque compte est un filtre
+  let recap = "";
+  if (!close) {
+    const tot = dansDep().length, recues = n("2");
+    const jours = camp.Date_limite ? Math.ceil((camp.Date_limite * 1000 - Date.now()) / 86400000) : null;
+    const actif = k => k === "ch" ? !!FILTRE.ch : k === "retard" ? FILTRE.retard : !FILTRE.ch && !FILTRE.retard && FILTRE.etape === k;
+    const item = (k, lib, nb, cl) => `<li><button class="recap-filtre${cl ? " " + cl : ""}" data-recap="${k}" aria-pressed="${actif(k)}"><span>${lib}</span><b>${nb}</b></button></li>`;
+    recap = `<aside class="recap" aria-label="Avancement de la campagne">
+      <h3>Campagne ${esc(camp.Annee)}${FILTRE.dep ? ` · ${esc(FILTRE.dep)}` : ""}</h3>
+      <div class="recap-total">${recues} fiche${recues > 1 ? "s" : ""} reçue${recues > 1 ? "s" : ""} sur ${tot}</div>
+      <div class="barre" role="progressbar" aria-valuemin="0" aria-valuemax="${tot}" aria-valuenow="${recues}"><i style="width:${tot ? Math.round(100 * recues / tot) : 0}%"></i></div>
+      <ul>${item("", "Toutes les fiches", tot)}${item("0", "À envoyer", n("0"))}${item("1", "Envoyées, en attente", n("1"))}${item("2", "Reçues", recues)}
+        ${item("ch", "Avec changements", nbChg())}${item("retard", "Sans réponse depuis 7 j", nbRetard(), nbRetard() ? "alerte" : "")}</ul>
+      ${camp.Date_limite ? `<p class="recap-date">Date limite : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}<br><b>${jours > 0 ? "J-" + jours : jours === 0 ? "Aujourd'hui" : "Dépassée de " + -jours + " j"}</b></p>` : ""}
+    </aside>`;
+  }
   const garde = l => {
     const e = et(l);
     if (FILTRE.etape !== "") { const [a, b] = FILTRE.etape.split("-").map(Number); if (e < a || e > (b ?? a)) return false; }
@@ -181,12 +195,11 @@ function afficher() {
     if (l.s && OUVERTE === l.s.id) corps += `<tr class="detail"><td colspan="5">${detail(l.s, close)}</td></tr>`;
   }
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
-  const contexte = close ? `Campagne ${esc(camp.Annee)} close, en consultation seule : chaque fiche est comparée à sa fiche ${esc(anCours)}.`
-    : camp.Date_limite ? `Date limite de retour : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}.` : "";
-  app.innerHTML = `${bandeau}${panneau()}${contexte ? `<p class="contexte">${contexte}</p>` : ""}${sousOnglets}${filtres}<div class="boite"><table class="suivi">
+  const contexte = close ? `Campagne ${esc(camp.Annee)} close, en consultation seule : chaque fiche est comparée à sa fiche ${esc(anCours)}.` : "";
+  app.innerHTML = `${bandeau}${panneau()}<div class="mise${recap ? " avec-recap" : ""}"><div class="principal">${contexte ? `<p class="contexte">${contexte}</p>` : ""}${sousOnglets}${filtres}<div class="boite"><table class="suivi">
     <thead>${close ? `<tr><th>Établissement · site</th><th>Contenu ${esc(camp.Annee)}</th><th>Statut ${esc(camp.Annee)}</th><th>Changements en ${esc(anCours)}</th><th>Actions</th></tr>`
       : `<tr><th>Établissement · site</th><th>État ${esc(anCours)}</th><th>Changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</th><th>Dernier échange</th><th>Actions</th></tr>`}</thead>
-    <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
+    <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div></div>${recap}</div>`;
 }
 
 const ICONE_PDF = `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><path d="M6 2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#EB4A50"/><path d="M14.5 2v5.5H20" fill="#F9C2C4"/><text x="12" y="17.6" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="6.6" fill="#fff">PDF</text></svg>`;
@@ -448,6 +461,12 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset, fiche = id => D.fiches.find(f => f.id === +id);
   if (d.retard) { FILTRE.retard = !FILTRE.retard; return afficher(); }
+  if (d.recap !== undefined) {
+    const k = d.recap, deja = b.getAttribute("aria-pressed") === "true" && k !== "";
+    FILTRE.etape = ""; FILTRE.ch = false; FILTRE.retard = false;
+    if (!deja) { if (k === "ch") FILTRE.ch = true; else if (k === "retard") FILTRE.retard = true; else FILTRE.etape = k; }
+    return afficher();
+  }
   if (d.avecCh) { FILTRE.ch = !FILTRE.ch; return afficher(); }
   if (d.replier !== undefined) { REPLIES.has(d.replier) ? REPLIES.delete(d.replier) : REPLIES.add(d.replier); return afficher(); }
   if (d.toutDep) { REPLIES = d.toutDep === "replier" ? new Set(D.fiches.map(f => f.Departement || "Sans département")) : new Set(); return afficher(); }

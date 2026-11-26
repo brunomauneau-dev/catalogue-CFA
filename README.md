@@ -27,8 +27,12 @@ Hors de Grist, la page s'affiche avec des données fictives (démonstration).
   « Envoyer » et « Relancer » préparent le mail dans la messagerie (rien n'est envoyé automatiquement).
 - *Campagnes closes* : consultation seule ; pour chaque fiche, comparaison avec sa fiche de la campagne en cours.
 
-Les deux onglets ont la même présentation : sous-onglets par département (« Toutes les fiches » par défaut), filtre d'étape, recherche, « avec changements », « sans réponse ».
-Chaque ligne a un bouton « PDF » qui télécharge la fiche avec la mise en page du catalogue (moteur commun `pdf-fiches.js`).
+Les deux onglets ont la même présentation : sous-onglets par département (« Toutes les fiches » par défaut), recherche.
+Campagne en cours : un récapitulatif dans la marge de droite (fiches reçues sur le total, barre de progression, date limite)
+dont chaque compte sert de filtre (à envoyer, en attente, reçues, avec changements, sans réponse depuis 7 jours).
+Le chevron en début de ligne déplie les changements, les échanges et la prochaine action ; « n changements » et la cellule
+« Dernier échange » y mènent directement. Un échange « Mail envoyé » noté à la main fait passer la fiche à « Envoyée ».
+Le logo PDF de chaque ligne télécharge la fiche avec la mise en page du catalogue (moteur commun `pdf-fiches.js`).
 
 Un clic sur un établissement ouvre sa fiche dans un panneau latéral (formulaire intégré, `window.FORMULAIRE_INTEGRE`) :
 le SAIO peut la corriger (modification notée dans les correspondances) ; une fiche close est en lecture seule.
@@ -59,14 +63,15 @@ Colonne facultative `Presentation_accompagnement` dans `Fiches` (texte d'introdu
 
 Habillage du PDF : « guide » (une couleur par département et un onglet en bord de page ; deux autres habillages
 restent disponibles dans `pdf-fiches.js`). Page de garde : un PDF A4 déposé dans l'onglet Catalogue, mémorisé pour
-la campagne (colonne `Campagnes.Couverture`) ; sans dépôt, une couverture simple est composée.
+la campagne (colonne `Campagnes.Couverture`), avec un bouton « Aperçu » ; sans dépôt, une couverture simple est composée.
 
 ### Fiches fournies en PDF (GRETA)
 
 Les établissements de la rubrique « Autre (Greta) » transmettent leur fiche en PDF. Dans le suivi, « Déposer le PDF reçu »
-l'enregistre dans la fiche (colonne `PDF_depose`, créée au premier dépôt) et la passe à l'état « Reçue ». Le catalogue et
-l'export d'une fiche l'insèrent tel quel (bibliothèque `lib/pdf-lib.min.js`, licence MIT) ; à défaut, la pièce jointe
-`Document_fourni` (PDF de l'an dernier) est utilisée. « Envoyer » prépare un mail demandant le PDF à jour.
+l'enregistre dans la fiche (colonne `PDF_depose`, créée au premier dépôt) et la passe à l'état « Reçue ». Ce PDF de communication
+n'est jamais retouché : le logo PDF le télécharge à l'identique, un clic sur le nom l'ouvre dans la visionneuse, et le catalogue
+insère ses pages sans pied de page ni onglet (bibliothèque `lib/pdf-lib.min.js`, licence MIT). À défaut, la pièce jointe
+`Document_fourni` (PDF de l'an dernier) est utilisée. « Demander le PDF » prépare le mail ; pas de comparaison champ par champ.
 
 ## Référentiel des intitulés
 

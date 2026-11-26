@@ -116,7 +116,7 @@ function afficher() {
         <label class="coche"><input type="radio" name="mode" value="derniere"${MODE === "derniere" ? " checked" : ""}>Fiches pas encore reçues : reprendre leur version de l'an dernier</label>
         <label class="coche"><input type="radio" name="mode" value="actuelle"${MODE === "actuelle" ? " checked" : ""}>Prendre toutes les fiches telles quelles, même non reçues (version de travail)</label>
         ${lignesDep || `<p class="etat">Aucune fiche retenue.</p>`}
-        <p class="etat">Ordre (comme le catalogue 2026) : couverture, pages d'information, sommaire, « Tous départements » (GRETA), puis chaque département avec sa page de séparation ; établissements par ordre alphabétique. Les formations « Fermée » n'apparaissent pas.</p>
+        <p class="etat">Ordre (comme le catalogue 2026) : couverture, pages d'information, sommaire, « Autre (Greta) » (PDF fournis par les GRETA, repris tels quels), puis chaque département avec sa page de séparation ; établissements par ordre alphabétique. Les formations « Fermée » n'apparaissent pas.</p>
       </section>
       <section class="carte"><div class="entete"><h2>Pages d'information</h2><button class="mini" id="ajoutPage">+ Ajouter une page</button></div>
         <p class="etat">Placées après la couverture. Mise en forme : <b>**gras**</b>, liste avec « - » en début de ligne, intertitre avec « ## », lien avec [texte](adresse).</p>
@@ -125,7 +125,7 @@ function afficher() {
     <div class="cote">
       <section class="carte"><h2>Page de garde</h2>
         <label class="champ">Déposer la page de garde (PDF, format A4)<input type="file" id="cImage" accept="application/pdf"></label>
-        ${aCouvCampagne() ? `<p class="etat">Page de garde ${esc(CAMP.Annee)} déposée : elle ouvrira le catalogue. Déposer un autre PDF la remplace.</p><div class="boutons"><button class="mini" id="cOublier">Retirer</button></div>`
+        ${aCouvCampagne() ? `<p class="etat">Page de garde ${esc(CAMP.Annee)} déposée : elle ouvrira le catalogue. Déposer un autre PDF la remplace.</p><div class="boutons"><button class="mini prim" id="cApercu">Aperçu</button><button class="mini" id="cOublier">Retirer</button></div>`
           : `<p class="etat">Aucune page de garde : une couverture simple (titre, année, logo) sera composée.</p>`}</section>
       <section class="carte"><button class="btn" id="generer"${ret.length ? "" : " disabled"}>Générer le PDF</button>
         <p class="etat">Le fichier est téléchargé par votre navigateur.</p></section>
@@ -157,6 +157,13 @@ async function couvertureCampagne() {
     if (!/^(image\/(png|jpe?g)|application\/pdf)$/i.test(blob.type)) return null;
     return await new Promise(ok => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(blob); });
   } catch (e) { return null; }
+}
+
+// Aperçu de la page de garde déposée, telle quelle, dans la visionneuse du widget
+async function apercuCouverture() {
+  const data = await couvertureCampagne();
+  if (!data || !/^data:application\/pdf/i.test(data)) { MSG = { cl: "err", txt: "Aperçu impossible : la page de garde n'est pas un PDF lisible." }; return afficher(); }
+  afficherOctets(new Uint8Array(dataVersOctets(data)), `Page de garde ${CAMP.Annee}`, `page-de-garde-${CAMP.Annee}.pdf`);
 }
 
 async function generer() {
@@ -203,6 +210,7 @@ racine.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset;
   if (d.apercuPdf) return apercuPdf(+d.apercuPdf);
+  if (b.id === "cApercu") return apercuCouverture();
   if (b.id === "cOublier") return appliquer([["UpdateRecord", "Campagnes", CAMP.id, { Couverture: null }]], "La page de garde de la campagne n'est plus utilisée.");
   if (b.id === "generer") { b.disabled = true; b.textContent = "Génération…"; return generer(); }
   if (b.id === "ajoutPage") {
