@@ -126,7 +126,9 @@ function afficher() {
       <section class="carte"><h2>Couverture</h2>
         <label class="champ">Habillage<select id="cStyle"><option value="guide"${STYLE === "guide" ? " selected" : ""}>Guide (une couleur par département)</option><option value="original"${STYLE === "original" ? " selected" : ""}>Fidèle au catalogue 2026 (vert et framboise)</option><option value="moderne"${STYLE === "moderne" ? " selected" : ""}>Modernisé (bleu France)</option></select></label>
         <label class="champ">Image de couverture (facultatif : page entière, PNG ou JPEG)<input type="file" id="cImage" accept="image/png,image/jpeg"></label>
-        ${COUV ? `<p class="etat">Couverture : ${esc(COUV_NOM)} <button class="mini" id="cSansImage">Retirer</button></p>` : `<p class="etat">Sans image, la couverture est composée avec le titre, l'année et le logo.</p>`}
+        ${COUV ? `<p class="etat">Couverture : ${esc(COUV_NOM)} <button class="mini" id="cSansImage">Retirer</button></p>`
+          : idsPieces(CAMP.Couverture).length ? `<p class="etat">Couverture de la campagne ${esc(CAMP.Annee)} : l'image déposée dans la table Campagnes (colonne « Couverture ») est utilisée. Choisir un fichier ci-dessus la remplace pour cette génération.</p>`
+          : `<p class="etat">Sans image, la couverture est composée avec le titre, l'année et le logo. Pour la garder d'une génération à l'autre, déposez-la dans la colonne « Couverture » de la table Campagnes.</p>`}
         <label class="champ">Titre<input id="cTitre" value="Catalogue de l'accompagnement vers l'apprentissage"></label>
         <label class="champ">Sous-titre (facultatif)<input id="cSous" value=""></label>
         <label class="champ">Mention en bas de couverture<input id="cBas" value="Service régional académique de l'information, de l'orientation et de la lutte contre le décrochage scolaire (SRAIOLDS)"></label></section>
@@ -146,12 +148,24 @@ async function apercuPdf(id) {
   } catch (err) { MSG = { cl: "err", txt: "Aperçu impossible : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 
+// Couverture enregistrée avec la campagne (colonne Campagnes.Couverture, image pleine page) -> data URL
+async function couvertureCampagne() {
+  const id = idsPieces(CAMP && CAMP.Couverture)[0];
+  if (!id || !DANS_GRIST) return null;
+  try {
+    const { token, baseUrl } = await grist.docApi.getAccessToken({ readOnly: true });
+    const blob = await (await fetch(`${baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(token)}`)).blob();
+    if (!/^image\/(png|jpe?g)$/i.test(blob.type)) return null;
+    return await new Promise(ok => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(blob); });
+  } catch (e) { return null; }
+}
+
 async function generer() {
   try {
     await chargerPdf();
     const opts = {
       titre: document.getElementById("cTitre").value.trim(), sousTitre: document.getElementById("cSous").value.trim(), bas: document.getElementById("cBas").value.trim(),
-      style: STYLE, couverture: COUV,
+      style: STYLE, couverture: COUV || await couvertureCampagne(),
       pages: [...D.pages].filter(p => p.Afficher).sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0)),
       groupes: parDepartement(fichesRetenues()), annee: CAMP.Annee,
     };
