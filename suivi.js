@@ -217,22 +217,25 @@ async function deposerPdf(id, fic) {
   await appliquer(a, `PDF de ${f.Etablissement} déposé : la fiche est reçue.`);
 }
 
+// Chevron de début de ligne : déplie changements, échanges et prochaine action (remplace l'ancien bouton « Détails »)
+const pli = s => s ? `<button class="pli-ligne" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}" title="${OUVERTE === s.id ? "Replier" : "Déplier : changements et échanges"}" aria-label="${OUVERTE === s.id ? "Replier" : "Déplier"} le suivi de ${esc(s.Etablissement)}"><span class="chevron" aria-hidden="true"></span></button>` : `<span class="pli-vide"></span>`;
+const celluleNom = (f, s, titre) => `<div class="nom-ligne">${pli(s)}<div><button class="lien-fiche" data-voir="${f.id}" title="${titre}">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></div></div>`;
+
 // f : fiche affichée (nom cliquable) ; s : fiche de la campagne en cours (étape, changements, actions) ; close : onglet des campagnes closes
 function ligneClose(f, s) {
-  const nom = `<button class="lien-fiche" data-voir="${f.id}" title="Consulter la fiche (lecture seule)">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span>`;
+  const nom = celluleNom(f, s, "Consulter la fiche (lecture seule)");
   const nb = t => D[t].filter(r => r.Fiche === f.id && r.Statut !== "Fermée").length;
   const ch = s ? changements(s) : null;
   const chg = !s ? `<span class="sous">pas de fiche en cours</span>` : !ch.length ? `<span class="sous">aucun</span>`
-    : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
+    : `<button class="lien-fiche" data-ouvrir="${s.id}" data-vers="changements">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const statut = recue(f) ? "Reçue" : `<span class="sous">non reçue</span>`;
-  const actions = `<div class="boutons">${s ? `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>` : ""}
-    ${BOUTON_PDF(f)}</div>`;
+  const actions = `<div class="boutons">${BOUTON_PDF(f)}</div>`;
   return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${chg}</td><td>${actions}</td></tr>`;
 }
 
 function ligne(f, s, close) {
   if (close) return ligneClose(f, s);
-  const nom = `<button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span>`;
+  const nom = celluleNom(f, s, "Ouvrir la fiche dans le formulaire");
   const sel = VUE === f.id || (s && VUE === s.id) ? ' class="selection"' : "";
   if (!s) return `<tr${sel}><td>${nom}</td><td colspan="3"><span class="sous">pas de fiche dans la campagne en cours</span></td>
     <td><div class="boutons">${BOUTON_PDF(f)}</div></td></tr>`;
@@ -244,16 +247,16 @@ function ligne(f, s, close) {
   const pdfFourni = horsDep(nomDep(s));
   const nbCh = pdfFourni ? (e === 2 ? `<span class="pill p-ok">PDF ${esc(CAMP_DE(s))} déposé</span>` : `<span class="sous">PDF de l'an dernier</span>`)
     : ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
-    : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
+    : `<button class="lien-fiche" data-ouvrir="${s.id}" data-vers="changements">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const der = echanges(s)[0];
-  const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Reçue · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "—";
+  const derBrut = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Reçue · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "";
+  const derTxt = `<button class="lien-fiche lien-doux" data-ouvrir="${s.id}" data-vers="echanges" title="Voir les échanges et en noter un">${derBrut || `<span class="ajout-ech">+ Noter un échange</span>`}</button>`;
   let actions = "";
   if (!close) {
     if (e === 0) actions += `<button class="mini${pdfFourni ? "" : " prim"}" data-envoyer="${s.id}">Envoyer</button>`;
     if (pdfFourni) actions += `<label class="mini${e === 2 ? "" : " prim"} depot-pdf" title="PDF reçu de l'établissement">${e === 2 ? "Remplacer le PDF" : "Déposer le PDF reçu"}<input type="file" accept="application/pdf" data-depot-pdf="${s.id}" hidden></label>`;
     if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
   }
-  actions += `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>`;
   actions = `<div class="boutons">${actions}${BOUTON_PDF(f, esc(CAMP_DE(f)))}</div>`;
   return `<tr${sel}><td>${nom}</td>
     <td>${etat}${s.Prochaine_action ? `<span class="sous">→ ${esc(s.Prochaine_action)}</span>` : ""}</td>
@@ -267,11 +270,11 @@ function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison
     : ch.length ? ch.map(d => `<div class="diff"><span class="pill">${esc(d.type)}</span><span>${esc(d.lib)} :</span>${d.avant ? `<span class="avant">${esc(d.avant)}</span>` : ""}${d.avant && d.apres ? "→" : ""}${d.apres ? `<span class="apres">${esc(d.apres)}</span>` : ""}</div>`).join("")
     : `<p class="etat">Aucun changement par rapport à l'an dernier.</p>`;
   const ech = echanges(f).map(x => `<div class="ech"><b>${dateFr(x.Date)} · ${esc(x.Type)}</b> — ${esc(x.Objet || "")}<span class="sous">${esc(x.Resume || "")}</span></div>`).join("") || `<p class="etat">Aucun échange enregistré.</p>`;
-  if (lecture) return `<div class="grille-detail"><section><h2>Changements par rapport à l'an dernier</h2>${diffs}</section><section><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section></div>`;
+  if (lecture) return `<div class="grille-detail"><section id="sec-changements"><h2>Changements par rapport à l'an dernier</h2>${diffs}</section><section id="sec-echanges"><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section></div>`;
   return `<div class="grille-detail">
-    <section><h2>Changements par rapport à l'an dernier</h2>${diffs}
+    <section id="sec-changements"><h2>Changements par rapport à l'an dernier</h2>${diffs}
       <label class="champ">Prochaine action<input data-prochaine="${f.id}" value="${esc(f.Prochaine_action || "")}" placeholder="Ex. : relancer le 20/01"></label></section>
-    <section><h2>Correspondances</h2>${ech}
+    <section id="sec-echanges"><h2>Correspondances</h2>${ech}
       <div class="form-ech">
         <label class="champ">Date<input type="date" id="eDate" value="${new Date().toISOString().slice(0, 10)}"></label>
         <label class="champ">Type<select id="eType"><option>Mail envoyé</option><option>Mail reçu</option><option>Appel</option><option>Note</option></select></label>
@@ -427,7 +430,12 @@ document.addEventListener("click", async e => {
   if (d.fermerQuandMeme !== undefined) return fermerTiroir(true);
   if (d.resterTiroir !== undefined) { document.getElementById("tAlerte").innerHTML = ""; return; }
   if (d.pdf) return exporterPdf(fiche(d.pdf));
-  if (d.ouvrir) { OUVERTE = OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; return afficher(); }
+  if (d.ouvrir) {
+    OUVERTE = d.vers ? +d.ouvrir : OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; afficher();
+    const cible = d.vers && document.getElementById("sec-" + d.vers);
+    if (cible) { cible.scrollIntoView({ block: "nearest", behavior: "smooth" }); if (d.vers === "echanges") document.getElementById("eObjet")?.focus({ preventScroll: true }); }
+    return;
+  }
   if (d.envoyer) return envoyer(fiche(d.envoyer), false);
   if (d.relancer) return envoyer(fiche(d.relancer), true);
   if (d.panneau !== undefined) { PANNEAU = d.panneau || null; MSG = null; return afficher(); }
@@ -440,7 +448,11 @@ document.addEventListener("click", async e => {
     const v = id => (document.getElementById(id).value || "").trim();
     const date = v("eDate") ? Date.parse(v("eDate")) / 1000 : null;
     if (!v("eObjet") && !v("eResume")) { MSG = { cl: "err", txt: "Indiquez au moins un objet ou un résumé." }; return afficher(); }
-    return appliquer([["AddRecord", "Correspondances", null, { Fiche: +d.ajoutEch, Date: date, Type: v("eType"), Objet: v("eObjet"), Resume: v("eResume") }]], "Échange enregistré.");
+    const a = [["AddRecord", "Correspondances", null, { Fiche: +d.ajoutEch, Date: date, Type: v("eType"), Objet: v("eObjet"), Resume: v("eResume") }]];
+    const f = fiche(d.ajoutEch);
+    const marque = v("eType") === "Mail envoyé" && f && etape(f) === 0;
+    if (marque) a.push(["UpdateRecord", "Fiches", f.id, { Lien_envoye_le: date || maintenant() }]);
+    return appliquer(a, marque ? "Échange enregistré : la fiche est marquée « Envoyée, en attente »." : "Échange enregistré.");
   }
 });
 
