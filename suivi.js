@@ -13,6 +13,7 @@ const JOUR = 86400;
 
 let D = { fiches: [], formations: [], contacts: [], accomp: [], corresp: [], campagnes: [] };
 let CAMP = null, FILTRE = { etape: "", dep: "", texte: "", retard: false }, OUVERTE = null, MSG = null;
+let REPLIES = new Set(); // départements repliés dans « Toutes les fiches »
 let VUE = null, ONGLET = "encours", ARCH = null; // fiche affichée dans le formulaire lié ; onglet en cours / closes
 let PANNEAU = null; // "nouvelle" (préparer la campagne suivante) ou "activer" (confirmation)
 
@@ -157,7 +158,8 @@ function afficher() {
     ${close ? "" : `<select id="fEtape" aria-label="Étape">${ETATS.map(([v, lib]) => `<option value="${v}"${FILTRE.etape === v ? " selected" : ""}>${lib} (${v === "" ? dansDep().length : n(v)})</option>`).join("")}</select>`}
     <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
     <button class="puce-filtre" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}">Avec changements · ${nbChg()}</button>
-    ${close ? "" : `<button class="puce-filtre${nbRetard() ? " alerte-filtre" : ""}" data-retard="1" aria-pressed="${FILTRE.retard}">Sans réponse depuis 7 j · ${nbRetard()}</button>`}</div>`;
+    ${close ? "" : `<button class="puce-filtre${nbRetard() ? " alerte-filtre" : ""}" data-retard="1" aria-pressed="${FILTRE.retard}">Sans réponse depuis 7 j · ${nbRetard()}</button>`}
+    ${FILTRE.dep ? "" : `<span class="boutons" style="margin-left:auto"><button class="mini" data-tout-dep="ouvrir">Tout déplier</button><button class="mini" data-tout-dep="replier">Tout replier</button></span>`}</div>`;
   const garde = l => {
     const e = et(l);
     if (FILTRE.etape !== "") { const [a, b] = FILTRE.etape.split("-").map(Number); if (e < a || e > (b ?? a)) return false; }
@@ -171,7 +173,12 @@ function afficher() {
   let corps = "", depCourant = null;
   for (const l of vis) {
     const dep = l.f.Departement || "Sans département";
-    if (!FILTRE.dep && dep !== depCourant) { depCourant = dep; corps += `<tr class="dep"><td colspan="5">${esc(dep)} · ${vis.filter(x => (x.f.Departement || "Sans département") === dep).length}</td></tr>`; }
+    if (!FILTRE.dep && dep !== depCourant) {
+      depCourant = dep;
+      const ouvert = !REPLIES.has(dep);
+      corps += `<tr class="dep"><td colspan="5"><button class="dep-pli" data-replier="${esc(dep)}" aria-expanded="${ouvert}"><span class="chevron" aria-hidden="true"></span>${esc(dep)} <span class="nb">${vis.filter(x => (x.f.Departement || "Sans département") === dep).length}</span></button></td></tr>`;
+    }
+    if (!FILTRE.dep && REPLIES.has(dep)) continue;
     corps += ligne(l.f, l.s, close);
     if (l.s && OUVERTE === l.s.id) corps += `<tr class="detail"><td colspan="5">${detail(l.s, close)}</td></tr>`;
   }
@@ -388,6 +395,8 @@ document.addEventListener("click", async e => {
   const d = b.dataset, fiche = id => D.fiches.find(f => f.id === +id);
   if (d.retard) { FILTRE.retard = !FILTRE.retard; return afficher(); }
   if (d.avecCh) { FILTRE.ch = !FILTRE.ch; return afficher(); }
+  if (d.replier !== undefined) { REPLIES.has(d.replier) ? REPLIES.delete(d.replier) : REPLIES.add(d.replier); return afficher(); }
+  if (d.toutDep) { REPLIES = d.toutDep === "replier" ? new Set(D.fiches.map(f => f.Departement || "Sans département")) : new Set(); return afficher(); }
   if (d.dep !== undefined) { FILTRE.dep = d.dep; OUVERTE = null; return afficher(); }
   if (d.onglet) { ONGLET = d.onglet; choisirCampagne(); OUVERTE = null; VUE = null; MSG = null; PANNEAU = null; FILTRE.etape = ""; FILTRE.retard = false; FILTRE.ch = false; FILTRE.dep = ""; viderSelection(); return afficher(); }
   if (d.voir) {
