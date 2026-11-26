@@ -85,3 +85,8 @@ tr.dep td{padding:0}
 .visionneuse-boite{background:#fff;border-radius:8px;width:min(900px,100%);height:min(92vh,1100px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .visionneuse-tete{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--bord)}
 .visionneuse iframe{flex:1;border:0;width:100%;background:#525659}
+.etat-fiche{display:inline-block;font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:999px;background:#EEF2F6;color:#364152}
+.etat-fiche.e1{background:#FFF1DC;color:#8A4B00}
+.etat-fiche.e2{background:#DCFAE6;color:#05603A}
+.etat-fiche.retard{background:#FEE4E2;color:#912018}
+.sous.retard{color:var(--rouge)}

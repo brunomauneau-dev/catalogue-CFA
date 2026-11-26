@@ -46,14 +46,14 @@ function demo() {
 }
 
 // ---------- Choix des fiches ----------
-// « derniere » : la fiche si finalisée, sinon sa dernière version finalisée, sinon exclue ; « actuelle » : toutes, telles quelles.
+// « derniere » : la fiche si elle a été reçue, sinon sa dernière version reçue (an dernier), sinon exclue ; « actuelle » : toutes, telles quelles.
 function fichesRetenues() {
   if (!CAMP) return [];
   const res = [];
   for (const f of D.fiches.filter(x => x.Campagne === CAMP.id)) {
-    if (MODE === "actuelle" || f.Finalisee_le) { res.push(f); continue; }
+    if (MODE === "actuelle" || f.Soumise_le || f.Finalisee_le) { res.push(f); continue; }
     let p = D.fiches.find(x => x.id === f.Fiche_precedente);
-    while (p && !p.Finalisee_le) p = D.fiches.find(x => x.id === p.Fiche_precedente);
+    while (p && !(p.Soumise_le || p.Finalisee_le)) p = D.fiches.find(x => x.id === p.Fiche_precedente);
     if (p) res.push(p);
   }
   return res;
@@ -112,9 +112,9 @@ function afficher() {
   app.innerHTML = `${enTeteIntegre}${bandeau}<div class="colonnes">
     <div class="principal">
       <section class="carte"><h2>Fiches du catalogue ${esc(CAMP.Annee)}</h2>
-        <p class="etat">${toutes.length} fiche(s) dans la campagne, dont ${toutes.filter(f => f.Finalisee_le).length} finalisée(s). ${ret.length} retenue(s) pour le catalogue.</p>
-        <label class="coche"><input type="radio" name="mode" value="derniere"${MODE === "derniere" ? " checked" : ""}>Fiches non finalisées : reprendre leur dernière version finalisée (sinon les laisser hors du catalogue)</label>
-        <label class="coche"><input type="radio" name="mode" value="actuelle"${MODE === "actuelle" ? " checked" : ""}>Prendre toutes les fiches telles quelles, même non finalisées (version de travail)</label>
+        <p class="etat">${toutes.length} fiche(s) dans la campagne, dont ${toutes.filter(f => f.Soumise_le || f.Finalisee_le).length} reçue(s). ${ret.length} retenue(s) pour le catalogue.</p>
+        <label class="coche"><input type="radio" name="mode" value="derniere"${MODE === "derniere" ? " checked" : ""}>Fiches pas encore reçues : reprendre leur version de l'an dernier</label>
+        <label class="coche"><input type="radio" name="mode" value="actuelle"${MODE === "actuelle" ? " checked" : ""}>Prendre toutes les fiches telles quelles, même non reçues (version de travail)</label>
         ${lignesDep || `<p class="etat">Aucune fiche retenue.</p>`}
         <p class="etat">Ordre (comme le catalogue 2026) : couverture, pages d'information, sommaire, « Tous départements » (GRETA), puis chaque département avec sa page de séparation ; établissements par ordre alphabétique. Les formations « Fermée » n'apparaissent pas.</p>
       </section>

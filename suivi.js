@@ -6,7 +6,8 @@
 "use strict";
 
 const DANS_GRIST = window.parent !== window;
-const ETAPES = ["Lien envoyé", "Ouverte", "Soumise", "En discussion", "Finalisée"];
+// Trois états seulement : à envoyer, envoyée (en attente de retour), reçue
+const ETATS_FICHE = ["À envoyer", "Envoyée, en attente", "Reçue"];
 const CHAMPS = [["Etablissement", "Établissement"], ["Site", "Site"], ["Adresse", "Adresse"], ["Code_postal", "Code postal"],
   ["Ville", "Ville"], ["Telephone", "Téléphone"], ["Mail", "Mail"], ["Site_internet", "Site internet"]];
 const JOUR = 86400;
@@ -62,19 +63,12 @@ const suivante = f => D.fiches.find(x => x.Fiche_precedente === f.id && (D.campa
 
 // ---------- Calculs ----------
 function etape(f) {
-  if (f.Finalisee_le) return 5;
-  if (f.Soumise_le && enDiscussion(f)) return 4;
-  if (f.Soumise_le) return 3;
-  if (f.Ouverte_le) return 2;
+  if (f.Soumise_le || f.Finalisee_le) return 2; // reçue (ou version validée d'une campagne close)
   if (f.Lien_envoye_le) return 1;
   return 0;
 }
-const libEtape = n => n === 0 ? "À envoyer" : n === 3 ? "Soumise, à vérifier" : ETAPES[n - 1];
-// Discussion : un mail ou un appel enregistré le jour de la soumission ou après (les notes du SAIO ne comptent pas)
-function enDiscussion(f) {
-  const jour = Math.floor((f.Soumise_le || 0) / 86400) * 86400;
-  return echanges(f).some(c => c.Type !== "Note" && (c.Date || 0) >= jour);
-}
+const recue = f => !!(f.Soumise_le || f.Finalisee_le);
+const libEtape = n => ETATS_FICHE[n] || "";
 
 function changements(f) {
   const prec = D.fiches.find(x => x.id === f.Fiche_precedente);
@@ -116,9 +110,8 @@ const echanges = f => D.corresp.filter(c => c.Fiche === f.id).sort((a, b) => (b.
 function derniereActivite(f) {
   return Math.max(f.Lien_envoye_le || 0, f.Ouverte_le || 0, f.Soumise_le || 0, ...echanges(f).map(e => e.Date || 0));
 }
-function enRetard(f) { // lien envoyé, pas soumise, rien depuis 7 jours
-  const e = etape(f);
-  return (e === 1 || e === 2) && maintenant() - derniereActivite(f) > 7 * JOUR;
+function enRetard(f) { // envoyée, pas reçue, rien depuis 7 jours
+  return etape(f) === 1 && maintenant() - derniereActivite(f) > 7 * JOUR;
 }
 
 // ---------- Affichage ----------
@@ -151,7 +144,7 @@ function afficher() {
   const depDe = l => l.f.Departement || "Sans département";
   const dansDep = () => lignes.filter(l => !FILTRE.dep || depDe(l) === FILTRE.dep);
   const n = v => dansDep().filter(l => { const e = et(l); const [a, b] = v.split("-").map(Number); return e >= a && e <= (b ?? a); }).length;
-  const ETATS = [["", "Toutes les étapes"], ["0", "À envoyer"], ["1-2", "Envoyées, en attente"], ["3", "Soumises, à vérifier"], ["4", "En discussion"], ["5", "Finalisées"]];
+  const ETATS = [["", "Toutes les fiches"], ["0", "À envoyer"], ["1", "Envoyées, en attente"], ["2", "Reçues"]];
   const nbRetard = () => dansDep().filter(l => l.s && enRetard(l.s)).length, nbChg = () => dansDep().filter(l => chg(l)).length;
   const deps = [...new Set(lignes.map(l => l.f.Departement || "Sans département"))].sort(ordreDep);
   if (FILTRE.dep && !deps.includes(FILTRE.dep)) FILTRE.dep = "";
@@ -192,7 +185,7 @@ function afficher() {
     : camp.Date_limite ? `Date limite de retour : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}.` : "";
   app.innerHTML = `${bandeau}${panneau()}${contexte ? `<p class="contexte">${contexte}</p>` : ""}${sousOnglets}${filtres}<div class="boite"><table class="suivi">
     <thead>${close ? `<tr><th>Établissement · site</th><th>Contenu ${esc(camp.Annee)}</th><th>Statut ${esc(camp.Annee)}</th><th>Changements en ${esc(anCours)}</th><th>Actions</th></tr>`
-      : `<tr><th>Établissement · site</th><th>Étape ${esc(anCours)}</th><th>Changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</th><th>Dernier échange</th><th>Actions</th></tr>`}</thead>
+      : `<tr><th>Établissement · site</th><th>État ${esc(anCours)}</th><th>Changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</th><th>Dernier échange</th><th>Actions</th></tr>`}</thead>
     <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
 }
 
@@ -218,7 +211,7 @@ function ligneClose(f, s) {
   const ch = s ? changements(s) : null;
   const chg = !s ? `<span class="sous">pas de fiche en cours</span>` : !ch.length ? `<span class="sous">aucun</span>`
     : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
-  const statut = f.Finalisee_le ? `Finalisée le ${esc(new Date(f.Finalisee_le * 1000).toLocaleDateString("fr-FR"))}` : `<span class="sous">non finalisée</span>`;
+  const statut = recue(f) ? "Reçue" : `<span class="sous">non reçue</span>`;
   const actions = `<div class="boutons">${s ? `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>` : ""}
     <button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche en PDF">${ICONE_PDF}PDF</button></div>`;
   return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${chg}</td><td>${actions}</td></tr>`;
@@ -231,27 +224,25 @@ function ligne(f, s, close) {
   if (!s) return `<tr${sel}><td>${nom}</td><td colspan="3"><span class="sous">pas de fiche dans la campagne en cours</span></td>
     <td><div class="boutons"><button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche en PDF">${ICONE_PDF}PDF</button></div></td></tr>`;
   const e = etape(s);
-  const dates = [s.Lien_envoye_le, s.Ouverte_le, s.Soumise_le, null, s.Finalisee_le];
-  const barres = ETAPES.map((lib, i) => `<i class="${i < e ? "f" : i === e && e >= 3 && e < 5 ? "c" : ""}" title="${esc(lib)}${dates[i] ? " · " + dateFr(dates[i]) : ""}"></i>`).join("");
+  const dateEtat = e === 2 ? (s.Soumise_le || s.Finalisee_le) : e === 1 ? s.Lien_envoye_le : null;
+  const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}`;
   const ch = changements(s);
   const pdfFourni = horsDep(nomDep(s)), aPdf = idsPieces(s.Document_fourni).length > 0;
   const nbCh = pdfFourni ? (aPdf ? `<span class="pill p-ok">PDF fourni</span>` : `<span class="pill">PDF à recevoir</span>`)
     : ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
     : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const der = echanges(s)[0];
-  const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Soumise · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "—";
+  const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Reçue · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "—";
   let actions = "";
   if (!close) {
     if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Envoyer</button>`;
-    if (pdfFourni && aPdf && e < 3) actions += `<button class="mini prim" data-pdf-recu="${s.id}" title="Le PDF à jour est déposé dans la colonne Document_fourni">PDF reçu</button>`;
-    if (e === 1 || e === 2) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
-    if (e >= 3 && e < 5) actions += `<button class="mini prim" data-finaliser="${s.id}">Finaliser</button>`;
-    if (e === 5) actions += `<button class="mini" data-definaliser="${s.id}">Rouvrir</button>`;
+    if (pdfFourni && aPdf && e < 2) actions += `<button class="mini prim" data-pdf-recu="${s.id}" title="Le PDF à jour est déposé dans la colonne Document_fourni">PDF reçu</button>`;
+    if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
   }
   actions += `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>`;
   actions = `<div class="boutons">${actions}</div><div class="boutons" style="margin-top:6px"><button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche ${esc(CAMP_DE(f))} en PDF">${ICONE_PDF}PDF</button></div>`;
   return `<tr${sel}><td>${nom}</td>
-    <td><div class="etapes">${barres}</div><span class="etiq${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${enRetard(s) ? " · sans réponse" : ""}</span>${s.Prochaine_action ? `<span class="sous">→ ${esc(s.Prochaine_action)}</span>` : ""}</td>
+    <td>${etat}${s.Prochaine_action ? `<span class="sous">→ ${esc(s.Prochaine_action)}</span>` : ""}</td>
     <td>${nbCh}</td><td>${derTxt}</td><td>${actions}</td></tr>`;
 }
 
@@ -313,12 +304,12 @@ async function colonnesDonnees() {
 }
 
 function sources(campSource) {
-  // la fiche si elle est finalisée, sinon sa dernière version finalisée (à défaut, la version actuelle)
+  // la fiche si elle a été reçue, sinon sa dernière version reçue (à défaut, la version actuelle)
   const res = [];
   for (const f of D.fiches.filter(x => x.Campagne === campSource.id)) {
-    if (f.Finalisee_le) { res.push(f); continue; }
+    if (recue(f)) { res.push(f); continue; }
     let p = D.fiches.find(x => x.id === f.Fiche_precedente);
-    while (p && !p.Finalisee_le) p = D.fiches.find(x => x.id === p.Fiche_precedente);
+    while (p && !recue(p)) p = D.fiches.find(x => x.id === p.Fiche_precedente);
     res.push(p || f);
   }
   return res;
@@ -327,12 +318,12 @@ function sources(campSource) {
 function panneau() {
   if (PANNEAU !== "nouvelle") return "";
   const src = CAMP, an = String((parseInt(src.Annee, 10) || new Date().getFullYear()) + 1);
-  const nbF = D.fiches.filter(f => f.Campagne === src.id).length, nbFin = D.fiches.filter(f => f.Campagne === src.id && f.Finalisee_le).length;
+  const nbF = D.fiches.filter(f => f.Campagne === src.id).length, nbFin = D.fiches.filter(f => f.Campagne === src.id && recue(f)).length;
   return `<section class="carte" style="margin-bottom:16px"><h2>Préparer une nouvelle campagne à partir de ${esc(src.Annee)}</h2>
     <div class="form-ech">
       <label class="champ">Année<input id="nAnnee" value="${esc(an)}"></label>
       <label class="champ">Date limite de retour<input type="date" id="nLimite"></label></div>
-    <p class="etat">${nbF} fiche(s) dans la campagne ${esc(src.Annee)}, dont ${nbFin} finalisée(s). Chaque fiche est reprise dans sa dernière version finalisée ;
+    <p class="etat">${nbF} fiche(s) dans la campagne ${esc(src.Annee)}, dont ${nbFin} reçue(s). Chaque fiche est reprise dans sa dernière version reçue ;
       les formations « Fermée » ne sont pas reprises, les « Nouvelle » deviennent « Maintenue ».</p>
     <p class="bandeau err" style="font-size:15px">La nouvelle campagne devient aussitôt la campagne en cours : la campagne ${esc(src.Annee)} est close
       et ses liens cessent de fonctionner pour les établissements.</p>
@@ -425,8 +416,6 @@ document.addEventListener("click", async e => {
   if (d.ouvrir) { OUVERTE = OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; return afficher(); }
   if (d.envoyer) return envoyer(fiche(d.envoyer), false);
   if (d.relancer) return envoyer(fiche(d.relancer), true);
-  if (d.finaliser) return appliquer([["UpdateRecord", "Fiches", +d.finaliser, { Finalisee_le: maintenant() }]], "Fiche finalisée.");
-  if (d.definaliser) return appliquer([["UpdateRecord", "Fiches", +d.definaliser, { Finalisee_le: null }]], "Fiche rouverte.");
   if (d.panneau !== undefined) { PANNEAU = d.panneau || null; MSG = null; return afficher(); }
   if (b.id === "creerCampagne") { b.disabled = true; b.textContent = "Création en cours…"; return creerCampagne(); }
   if (d.activer) {

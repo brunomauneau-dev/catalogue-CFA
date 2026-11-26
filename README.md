@@ -22,9 +22,8 @@ Hors de Grist, la page s'affiche avec des données fictives (démonstration).
 ## Tableau de suivi du SAIO (widget Grist)
 
 `suivi.html` (+ `suivi.js`, `suivi.css`) : deux onglets.
-- *Campagne en cours* : une ligne par fiche, regroupées par département, avec les étapes (lien envoyé, ouverte,
-  soumise, en discussion, finalisée), les changements par rapport à la fiche de l'an dernier, les correspondances
-  et la prochaine action. « En discussion » est déduite des mails et appels enregistrés après la soumission.
+- *Campagne en cours* : une ligne par fiche, regroupées par département, avec son état (à envoyer, envoyée en attente,
+  reçue), les changements par rapport à la fiche de l'an dernier, les correspondances et la prochaine action.
   « Envoyer » et « Relancer » préparent le mail dans la messagerie (rien n'est envoyé automatiquement).
 - *Campagnes closes* : consultation seule ; pour chaque fiche, comparaison avec sa fiche de la campagne en cours.
 
