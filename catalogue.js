@@ -31,7 +31,7 @@ function demo() {
     fiches: [f(1, "CFA Démo du Bâtiment", "Gironde"), f(2, "CFA Démo Hôtellerie", "Landes"), f(3, "CFA Démo Multisites", TOUS), f(4, "CFA Démo Commerce", "Gironde", { Finalisee_le: null })],
     formations: [["CAP Maçon", "Bâtiment, Travaux publics", 1], ["CAP Couvreur", "Bâtiment, Travaux publics", 1], ["CAP Ébéniste", "Bois, Ameublement", 1], ["CAP Cuisine", "Hôtellerie, Restauration", 2], ["Bac pro Métiers de l'accueil", "Commerce, Vente, Logistique", 3], ["CAP Équipier polyvalent du commerce", "Commerce, Vente, Logistique", 4]]
       .map(([Intitule, Filiere, Fiche], i) => ({ id: i + 1, Fiche, Intitule, Filiere, Statut: "Maintenue", Remarque: i === 0 ? "Possible aussi sur un autre site" : "" })),
-    contacts: [1, 2, 3, 4].map(n => ({ id: n, Fiche: n, Pole: "Accueil des candidats", Nom: "Prénom NOM", Telephone: "05 00 00 00 0" + n, Mail: "contact" + n + "@exemple.fr" })),
+    contacts: [1, 2, 3, 4].map(n => ({ id: n, Fiche: n, Fonction: "Accueil des candidats", Nom: "Prénom NOM", Telephone: "05 00 00 00 0" + n, Mail: "contact" + n + "@exemple.fr" })),
     accomp: [1, 2, 3].flatMap(n => ["Entretien individuel", "Mise en relation avec des entreprises", "Job dating"].map((Action, i) => ({ id: n * 10 + i, Fiche: n, Groupe: "", Action, Cochee: i !== 2 }))),
     pages: [{ id: 1, Ordre: 1, Titre: "Quels sont mes droits et mes obligations ?", Afficher: true, Texte: "Texte de démonstration.\n\n- **Gras** entre doubles astérisques\n- Lien : [Parcoursup](https://www.parcoursup.fr)\n\n## Intertitre\nParagraphe ordinaire." }],
   };
@@ -297,8 +297,7 @@ function genererPdf(opts) {
       cote.y += 4; intertitre(cote, cts.length > 1 ? "Contacts" : "Contact");
       for (const x of cts) {
         place(cote, lh(9) * 4);
-        if (x.Pole) texte(cote, x.Pole, { taille: 9, style: "bold" });
-        if (x.Nom) texte(cote, x.Nom, { taille: 9, style: x.Pole ? "normal" : "bold" });
+        if (x.Nom) texte(cote, x.Nom, { taille: 9, style: "bold" });
         if (x.Fonction) texte(cote, x.Fonction, { taille: 8.5, style: "italic", c: COUL.doux });
         if (x.Telephone) texte(cote, x.Telephone, { taille: 9 });
         if (x.Mail) texte(cote, x.Mail, { taille: 9, c: COUL.bleu });

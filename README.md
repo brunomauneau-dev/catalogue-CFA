@@ -21,19 +21,24 @@ Hors de Grist, la page s'affiche avec des données fictives (démonstration).
 
 ## Tableau de suivi du SAIO (widget Grist)
 
-`suivi.html` (+ `suivi.js`, `suivi.css`) : une ligne par fiche de la campagne, regroupées par département,
-avec les étapes (lien envoyé, ouverte, soumise, mise en forme, en discussion, finalisée), les changements
-par rapport à la fiche de l'an dernier, les correspondances et la prochaine action.
-« Envoyer » et « Relancer » préparent le mail dans la messagerie (rien n'est envoyé automatiquement).
+`suivi.html` (+ `suivi.js`, `suivi.css`) : deux onglets.
+- *Campagne en cours* : une ligne par fiche, regroupées par département, avec les étapes (lien envoyé, ouverte,
+  soumise, en discussion, finalisée), les changements par rapport à la fiche de l'an dernier, les correspondances
+  et la prochaine action. « En discussion » est déduite des mails et appels enregistrés après la soumission.
+  « Envoyer » et « Relancer » préparent le mail dans la messagerie (rien n'est envoyé automatiquement).
+- *Campagnes closes* : consultation seule ; pour chaque fiche, comparaison avec sa fiche de la campagne en cours.
+
+Un clic sur un établissement ouvre sa fiche dans le formulaire placé sur la même page (« Sélectionner par » le suivi) :
+le SAIO peut la corriger (mode SAIO, modification notée dans les correspondances) ; une fiche close est en lecture seule.
 
 Dans Grist : Widget personnalisé → URL `…/suivi.html`, données : table *Fiches*, accès complet.
 Tables utilisées en plus : `Campagnes` (Annee, Date_limite, Active, URL_formulaire), `Correspondances`
 (Fiche, Date, Type, Objet, Resume) ; colonnes de suivi dans `Fiches` (Campagne, Fiche_precedente,
-Lien_envoye_le, Ouverte_le, Soumise_le, Finalisee_le, Etape_SAIO, Prochaine_action, Code_actif).
+Lien_envoye_le, Ouverte_le, Soumise_le, Finalisee_le, Prochaine_action, Code_actif).
 
-« Préparer une nouvelle campagne » recopie les fiches (dernière version finalisée par défaut) dans une campagne
-inactive, avec de nouveaux codes et un lien vers la fiche d'origine ; les formations fermées ne sont pas reprises.
-« Activer cette campagne » la rend active : les liens des autres campagnes cessent alors de fonctionner.
+« Préparer une nouvelle campagne » recopie les fiches (dernière version finalisée) dans une nouvelle campagne,
+avec de nouveaux codes et un lien vers la fiche d'origine (formations fermées non reprises), et la lance :
+la campagne précédente est close et ses liens cessent de fonctionner.
 
 ## Génération du catalogue (widget Grist)
 

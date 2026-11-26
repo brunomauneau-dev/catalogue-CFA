@@ -6,7 +6,7 @@
 "use strict";
 
 const DANS_GRIST = window.parent !== window;
-const ETAPES = ["Lien envoyé", "Ouverte", "Soumise", "Mise en forme", "En discussion", "Finalisée"];
+const ETAPES = ["Lien envoyé", "Ouverte", "Soumise", "En discussion", "Finalisée"];
 const CHAMPS = [["Etablissement", "Établissement"], ["Site", "Site"], ["Adresse", "Adresse"], ["Code_postal", "Code postal"],
   ["Ville", "Ville"], ["Telephone", "Téléphone"], ["Mail", "Mail"], ["Site_internet", "Site internet"]];
 const JOUR = 86400;
@@ -44,7 +44,7 @@ function demo() {
       { id: 4, Campagne: 2, Code: "demo-c", Etablissement: "CFA Démo C", Site: "Site principal", Departement: "Dordogne", Mail: "c@exemple.fr" }],
     formations: [{ id: 1, Fiche: 1, Intitule: "CAP Maçon", Statut: "Maintenue" }, { id: 2, Fiche: 1, Intitule: "CAP Métallier", Statut: "Maintenue" },
       { id: 3, Fiche: 2, Intitule: "CAP Maçon", Statut: "Maintenue" }, { id: 4, Fiche: 2, Intitule: "CAP Métallier", Statut: "Fermée" }, { id: 5, Fiche: 2, Intitule: "CAP Carreleur mosaïste", Statut: "Nouvelle" }],
-    contacts: [{ id: 1, Fiche: 1, Pole: "Bâtiment", Nom: "Ancien contact" }, { id: 2, Fiche: 2, Pole: "Bâtiment", Nom: "Nouveau contact" }],
+    contacts: [{ id: 1, Fiche: 1, Fonction: "Bâtiment", Nom: "Ancien contact" }, { id: 2, Fiche: 2, Fonction: "Bâtiment", Nom: "Nouveau contact" }],
     accomp: [], corresp: [{ id: 1, Fiche: 3, Date: t - 5 * JOUR, Type: "Appel", Objet: "Question", Resume: "Échange fictif" }],
   };
   choisirCampagne();
@@ -61,15 +61,19 @@ const suivante = f => D.fiches.find(x => x.Fiche_precedente === f.id && (D.campa
 
 // ---------- Calculs ----------
 function etape(f) {
-  if (f.Finalisee_le) return 6;
-  if (f.Etape_SAIO === "En discussion") return 5;
-  if (f.Etape_SAIO === "Mise en forme") return 4;
+  if (f.Finalisee_le) return 5;
+  if (f.Soumise_le && enDiscussion(f)) return 4;
   if (f.Soumise_le) return 3;
   if (f.Ouverte_le) return 2;
   if (f.Lien_envoye_le) return 1;
   return 0;
 }
-const libEtape = n => n === 0 ? "À envoyer" : n === 3 ? "Soumise, à mettre en forme" : ETAPES[n - 1];
+const libEtape = n => n === 0 ? "À envoyer" : n === 3 ? "Soumise, à vérifier" : ETAPES[n - 1];
+// Discussion : un mail ou un appel enregistré le jour de la soumission ou après (les notes du SAIO ne comptent pas)
+function enDiscussion(f) {
+  const jour = Math.floor((f.Soumise_le || 0) / 86400) * 86400;
+  return echanges(f).some(c => c.Type !== "Note" && (c.Date || 0) >= jour);
+}
 
 function changements(f) {
   const prec = D.fiches.find(x => x.id === f.Fiche_precedente);
@@ -87,9 +91,9 @@ function changements(f) {
   for (const o of fo0) if (!fo1.find(x => norm(x.Intitule) === norm(o.Intitule))) out.push({ type: "Formation", lib: "Retirée", avant: o.Intitule });
   const co0 = de("contacts", prec.id), co1 = de("contacts", f.id);
   // contacts rapprochés par nom, sinon par pôle / fonction
-  const cle = c => norm(c.Nom) || norm(c.Pole) || norm(c.Fonction);
-  const pareil = (a, b) => (norm(a.Nom) && norm(a.Nom) === norm(b.Nom)) || (!norm(a.Nom) && cle(a) === cle(b)) || (norm(a.Pole) && norm(a.Pole) === norm(b.Pole) && norm(a.Fonction) === norm(b.Fonction));
-  const etiq = c => c.Pole || c.Fonction || "";
+  const cle = c => norm(c.Nom) || norm(c.Fonction);
+  const pareil = (a, b) => (norm(a.Nom) && norm(a.Nom) === norm(b.Nom)) || (!norm(a.Nom) && cle(a) === cle(b));
+  const etiq = c => c.Fonction || "";
   for (const n of co1) {
     const o = co0.find(x => pareil(x, n));
     if (!o) { out.push({ type: "Contact", lib: "Nouveau · " + etiq(n), apres: n.Nom }); continue; }
@@ -134,10 +138,10 @@ function afficher() {
   if (ONGLET === "closes") return afficherArchive(camp);
 
   const fiches = D.fiches.filter(f => f.Campagne === camp.id);
-  const parEtape = [0, 1, 2, 3, 4, 5, 6].map(n => fiches.filter(f => etape(f) === n).length);
+  const parEtape = [0, 1, 2, 3, 4, 5].map(n => fiches.filter(f => etape(f) === n).length);
   const nbRetard = fiches.filter(enRetard).length;
   const compteur = (val, nb, lib) => `<button class="compteur" data-filtre-etape="${val}" aria-pressed="${FILTRE.etape === String(val)}"><b>${nb}</b><span>${lib}</span></button>`;
-  const compteurs = `<div class="compteurs">${compteur("", fiches.length, "Toutes")}${compteur(0, parEtape[0], "À envoyer")}${compteur("1-2", parEtape[1] + parEtape[2], "Envoyées, en attente")}${compteur(3, parEtape[3], "Soumises, à traiter")}${compteur("4-5", parEtape[4] + parEtape[5], "Mise en forme / discussion")}${compteur(6, parEtape[6], "Finalisées")}
+  const compteurs = `<div class="compteurs">${compteur("", fiches.length, "Toutes")}${compteur(0, parEtape[0], "À envoyer")}${compteur("1-2", parEtape[1] + parEtape[2], "Envoyées, en attente")}${compteur(3, parEtape[3], "Soumises, à vérifier")}${compteur(4, parEtape[4], "En discussion")}${compteur(5, parEtape[5], "Finalisées")}
     <button class="compteur" data-retard="1" aria-pressed="${FILTRE.retard}"><b class="${nbRetard ? "retard" : ""}">${nbRetard}</b><span>Sans réponse depuis 7 j</span></button>
     <button class="compteur" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}"><b>${fiches.filter(f => (changements(f) || []).length).length}</b><span>Avec changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</span></button></div>`;
 
@@ -145,7 +149,6 @@ function afficher() {
   const filtres = `<div class="filtres">
     <select id="fDep" aria-label="Département"><option value="">Tous les départements</option>${deps.map(d => `<option${FILTRE.dep === d ? " selected" : ""}>${esc(d)}</option>`).join("")}</select>
     <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
-    <button class="mini" id="envoyerTous">Préparer l'envoi des fiches « À envoyer »</button>
     ${camp.Date_limite ? `<span class="etat">Date limite : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}</span>` : ""}</div>`;
 
   const garde = f => {
@@ -192,7 +195,7 @@ function afficherArchive(camp) {
   }
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
   app.innerHTML = `${bandeau}${panneau()}<p class="info">Campagne ${esc(camp.Annee)} close : consultation seule. Elle sert de base de comparaison${active ? " pour les fiches " + esc(active.Annee) : ""}.
-    <button class="mini" data-panneau="activer" style="margin-left:8px">Activer cette campagne…</button></p>
+</p>
     <div class="filtres"><select id="fDep" aria-label="Département"><option value="">Tous les départements</option>${deps.map(d => `<option${FILTRE.dep === d ? " selected" : ""}>${esc(d)}</option>`).join("")}</select>
     <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}"></div>
     <div class="boite"><table class="suivi"><thead><tr><th>Établissement · site (${esc(camp.Annee)})</th><th>Contenu ${esc(camp.Annee)}</th><th>Fiche ${active ? esc(active.Annee) : "en cours"}</th><th>Changements</th><th></th></tr></thead>
@@ -201,8 +204,8 @@ function afficherArchive(camp) {
 
 function ligne(f) {
   const e = etape(f);
-  const dates = [f.Lien_envoye_le, f.Ouverte_le, f.Soumise_le, null, null, f.Finalisee_le];
-  const barres = ETAPES.map((lib, i) => `<i class="${i < e ? "f" : i === e && e >= 3 && e < 6 ? "c" : ""}" title="${esc(lib)}${dates[i] ? " · " + dateFr(dates[i]) : ""}"></i>`).join("");
+  const dates = [f.Lien_envoye_le, f.Ouverte_le, f.Soumise_le, null, f.Finalisee_le];
+  const barres = ETAPES.map((lib, i) => `<i class="${i < e ? "f" : i === e && e >= 3 && e < 5 ? "c" : ""}" title="${esc(lib)}${dates[i] ? " · " + dateFr(dates[i]) : ""}"></i>`).join("");
   const ch = changements(f);
   const nbCh = ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
     : `<button class="lien-fiche" data-ouvrir="${f.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
@@ -211,8 +214,8 @@ function ligne(f) {
   let actions = "";
   if (e === 0) actions += `<button class="mini prim" data-envoyer="${f.id}">Envoyer</button>`;
   if (e === 1 || e === 2) actions += `<button class="mini" data-relancer="${f.id}">Relancer</button>`;
-  if (e >= 3 && e < 6) actions += `<button class="mini prim" data-finaliser="${f.id}">Finaliser</button>`;
-  if (e === 6) actions += `<button class="mini" data-definaliser="${f.id}">Rouvrir</button>`;
+  if (e >= 3 && e < 5) actions += `<button class="mini prim" data-finaliser="${f.id}">Finaliser</button>`;
+  if (e === 5) actions += `<button class="mini" data-definaliser="${f.id}">Rouvrir</button>`;
   actions += `<button class="mini" data-ouvrir="${f.id}" aria-expanded="${OUVERTE === f.id}">${OUVERTE === f.id ? "Fermer" : "Détails"}</button>`;
   return `<tr${VUE === f.id ? ' class="selection"' : ""}><td><button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></td>
     <td><div class="etapes">${barres}</div><span class="etiq${enRetard(f) ? " retard" : ""}">${esc(libEtape(e))}${enRetard(f) ? " · sans réponse" : ""}</span></td>
@@ -226,11 +229,9 @@ function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison
     : ch.length ? ch.map(d => `<div class="diff"><span class="pill">${esc(d.type)}</span><span>${esc(d.lib)} :</span>${d.avant ? `<span class="avant">${esc(d.avant)}</span>` : ""}${d.avant && d.apres ? "→" : ""}${d.apres ? `<span class="apres">${esc(d.apres)}</span>` : ""}</div>`).join("")
     : `<p class="etat">Aucun changement par rapport à l'an dernier.</p>`;
   const ech = echanges(f).map(x => `<div class="ech"><b>${dateFr(x.Date)} · ${esc(x.Type)}</b> — ${esc(x.Objet || "")}<span class="sous">${esc(x.Resume || "")}</span></div>`).join("") || `<p class="etat">Aucun échange enregistré.</p>`;
-  const etapeSaio = `<label class="champ">Étape SAIO<select data-etape-saio="${f.id}"><option value="">—</option>${["Mise en forme", "En discussion"].map(v => `<option${f.Etape_SAIO === v ? " selected" : ""}>${v}</option>`).join("")}</select></label>`;
   if (lecture) return `<div class="grille-detail"><section><h2>Changements par rapport à l'an dernier</h2>${diffs}</section><section><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section></div>`;
   return `<div class="grille-detail">
     <section><h2>Changements par rapport à l'an dernier</h2>${diffs}
-      ${e >= 3 ? etapeSaio : ""}
       <label class="champ">Prochaine action<input data-prochaine="${f.id}" value="${esc(f.Prochaine_action || "")}" placeholder="Ex. : relancer le 20/01"></label></section>
     <section><h2>Correspondances</h2>${ech}
       <div class="form-ech">
@@ -260,7 +261,7 @@ function mail(f, relance) {
 // ---------- Nouvelle campagne ----------
 // Recopie les fiches dans une nouvelle campagne (inactive tant qu'on ne l'active pas) :
 // nouveaux codes, lien vers la fiche d'origine (pour la comparaison), formations fermées non reprises.
-const SUIVI = ["Code", "Campagne", "Fiche_precedente", "Lien_envoye_le", "Ouverte_le", "Soumise_le", "Finalisee_le", "Etape_SAIO", "Prochaine_action"];
+const SUIVI = ["Code", "Campagne", "Fiche_precedente", "Lien_envoye_le", "Ouverte_le", "Soumise_le", "Finalisee_le", "Prochaine_action"];
 let COLONNES = null; // colonnes de données (hors formules) par table, lues dans les métadonnées
 
 async function colonnesDonnees() {
@@ -271,11 +272,11 @@ async function colonnesDonnees() {
   return COLONNES;
 }
 
-function sources(campSource, mode) {
-  // mode "finalisee" : la fiche si elle est finalisée, sinon sa dernière version finalisée ; mode "actuelle" : la fiche telle quelle
+function sources(campSource) {
+  // la fiche si elle est finalisée, sinon sa dernière version finalisée (à défaut, la version actuelle)
   const res = [];
   for (const f of D.fiches.filter(x => x.Campagne === campSource.id)) {
-    if (mode === "actuelle" || f.Finalisee_le) { res.push(f); continue; }
+    if (f.Finalisee_le) { res.push(f); continue; }
     let p = D.fiches.find(x => x.id === f.Fiche_precedente);
     while (p && !p.Finalisee_le) p = D.fiches.find(x => x.id === p.Fiche_precedente);
     res.push(p || f);
@@ -284,9 +285,6 @@ function sources(campSource, mode) {
 }
 
 function panneau() {
-  if (PANNEAU === "activer") return `<div class="bandeau err" style="margin-bottom:12px">Activer la campagne ${esc(CAMP.Annee)} ?
-    Les liens des autres campagnes cesseront aussitôt de fonctionner pour les établissements.
-    <div class="boutons" style="margin-top:10px"><button class="btn" data-activer="${CAMP.id}">Oui, activer</button><button class="btn sec" data-panneau="">Annuler</button></div></div>`;
   if (PANNEAU !== "nouvelle") return "";
   const src = CAMP, an = String((parseInt(src.Annee, 10) || new Date().getFullYear()) + 1);
   const nbF = D.fiches.filter(f => f.Campagne === src.id).length, nbFin = D.fiches.filter(f => f.Campagne === src.id && f.Finalisee_le).length;
@@ -294,21 +292,19 @@ function panneau() {
     <div class="form-ech">
       <label class="champ">Année<input id="nAnnee" value="${esc(an)}"></label>
       <label class="champ">Date limite de retour<input type="date" id="nLimite"></label></div>
-    <p class="etat">${nbF} fiche(s) dans la campagne ${esc(src.Annee)}, dont ${nbFin} finalisée(s). Fiches non finalisées :</p>
-    <label class="coche"><input type="radio" name="nMode" value="finalisee" checked>reprendre leur dernière version finalisée (sinon la version actuelle)</label>
-    <label class="coche"><input type="radio" name="nMode" value="actuelle">reprendre la version actuelle, même non finalisée</label>
-    <p class="etat">Les formations marquées « Fermée » ne sont pas reprises ; les « Nouvelle » deviennent « Maintenue ».
-      La nouvelle campagne reste <b>inactive</b> : les liens actuels continuent de fonctionner jusqu'à ce que vous l'activiez.</p>
-    <div class="boutons"><button class="btn" id="creerCampagne">Créer la campagne</button><button class="btn sec" data-panneau="">Annuler</button></div></section>`;
+    <p class="etat">${nbF} fiche(s) dans la campagne ${esc(src.Annee)}, dont ${nbFin} finalisée(s). Chaque fiche est reprise dans sa dernière version finalisée ;
+      les formations « Fermée » ne sont pas reprises, les « Nouvelle » deviennent « Maintenue ».</p>
+    <p class="bandeau err" style="font-size:15px">La nouvelle campagne devient aussitôt la campagne en cours : la campagne ${esc(src.Annee)} est close
+      et ses liens cessent de fonctionner pour les établissements.</p>
+    <div class="boutons"><button class="btn" id="creerCampagne">Créer et lancer la campagne</button><button class="btn sec" data-panneau="">Annuler</button></div></section>`;
 }
 
 async function creerCampagne() {
   const annee = document.getElementById("nAnnee").value.trim();
   const lim = document.getElementById("nLimite").value;
-  const mode = (document.querySelector('input[name="nMode"]:checked') || {}).value || "finalisee";
   if (!annee) { MSG = { cl: "err", txt: "Indiquez l'année de la campagne." }; return afficher(); }
   if (D.campagnes.some(c => String(c.Annee).trim() === annee)) { MSG = { cl: "err", txt: `La campagne ${annee} existe déjà.` }; return afficher(); }
-  const src = sources(CAMP, mode);
+  const src = sources(CAMP);
   if (!DANS_GRIST) { MSG = { cl: "ok", txt: `Démonstration : la campagne ${annee} serait créée avec ${src.length} fiche(s).` }; PANNEAU = null; return afficher(); }
   try {
     const cols = await colonnesDonnees();
@@ -331,8 +327,9 @@ async function creerCampagne() {
       if (rows.length) enfants.push(bulk(table, rows));
     }
     if (enfants.length) await grist.docApi.applyUserActions(enfants);
+    await grist.docApi.applyUserActions([...D.campagnes, { id: campId }].map(c => ["UpdateRecord", "Campagnes", c.id, { Active: c.id === campId }]));
     PANNEAU = null;
-    MSG = { cl: "ok", txt: `Campagne ${annee} créée (inactive) : ${ids.length} fiche(s) reprises. Elle apparaît dans l'onglet « Campagnes closes » ; pour la lancer, utilisez « Activer » (panneau de confirmation).` };
+    MSG = { cl: "ok", txt: `Campagne ${annee} créée et lancée : ${ids.length} fiche(s) reprises. La campagne précédente est close.` };
     CAMP = { id: campId };
     await charger();
   } catch (err) { MSG = { cl: "err", txt: "Création interrompue : " + (err && err.message ? err.message : err) }; afficher(); }
@@ -365,7 +362,6 @@ document.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixArchive") { ARCH = D.campagnes.find(c => c.id === +el.value); choisirCampagne(); OUVERTE = null; MSG = null; return afficher(); }
   if (el.id === "fDep") { FILTRE.dep = el.value; return afficher(); }
-  if (el.dataset.etapeSaio) return appliquer([["UpdateRecord", "Fiches", +el.dataset.etapeSaio, { Etape_SAIO: el.value || null }]], "Étape mise à jour.");
   if (el.dataset.prochaine) return appliquer([["UpdateRecord", "Fiches", +el.dataset.prochaine, { Prochaine_action: el.value }]], "Prochaine action enregistrée.");
 });
 app.addEventListener("input", e => {
@@ -394,12 +390,6 @@ document.addEventListener("click", async e => {
   if (d.activer) {
     PANNEAU = null;
     return appliquer(D.campagnes.map(c => ["UpdateRecord", "Campagnes", c.id, { Active: c.id === +d.activer }]), "Campagne activée : les liens des autres campagnes ne fonctionnent plus.");
-  }
-  if (b.id === "envoyerTous") {
-    const aEnvoyer = D.fiches.filter(f => f.Campagne === CAMP.id && etape(f) === 0);
-    if (!aEnvoyer.length) { MSG = { cl: "ok", txt: "Aucune fiche à envoyer." }; return afficher(); }
-    MSG = { cl: "ok", txt: `${aEnvoyer.length} fiche(s) à envoyer : utilisez le bouton « Envoyer » de chaque ligne (filtre « À envoyer »).` };
-    FILTRE.etape = "0"; return afficher();
   }
   if (d.ajoutEch) {
     const v = id => (document.getElementById(id).value || "").trim();

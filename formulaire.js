@@ -11,7 +11,7 @@ const CHAMPS_FICHE = [
   ["Code_postal", "Code postal"], ["Ville", "Ville"], ["Telephone", "Téléphone"], ["Mail", "Mail"], ["Site_internet", "Site internet"],
 ];
 const PRESENTATION = "Presentation_accompagnement"; // texte d'introduction de l'accompagnement (facultatif)
-const CHAMPS_CONTACT = [["Pole", "Pôle ou filière"], ["Fonction", "Fonction"], ["Nom", "Nom"], ["Telephone", "Téléphone"], ["Mail", "Mail"]];
+const CHAMPS_CONTACT = [["Fonction", "Fonction / pôle"], ["Nom", "Nom"], ["Telephone", "Téléphone"], ["Mail", "Mail"]];
 
 let FICHES = [], FICHE = null, ORIG = null, REF = [];
 let ETAT = { contacts: [], formations: [], accomp: [] };
@@ -58,7 +58,7 @@ function demo() {
   REF = [["CAP", "Maçon", "Bâtiment, Travaux publics"], ["CAP", "Couvreur", "Bâtiment, Travaux publics"], ["CAP", "Carreleur mosaïste", "Bâtiment, Travaux publics"], ["CAP", "Cuisine", "Hôtellerie, Restauration"], ["Bac pro", "Métiers de l'accueil", "Commerce, Vente, Logistique"]]
     .map(([Diplome, Intitule, Filiere], i) => ({ id: i + 1, Diplome, Intitule, Filiere }));
   ETAT = {
-    contacts: [{ id: 1, Fiche: 1, Pole: "Bâtiment", Nom: "Prénom NOM", Telephone: "05 00 00 00 01", Mail: "contact1@exemple.fr" }],
+    contacts: [{ id: 1, Fiche: 1, Fonction: "Bâtiment", Nom: "Prénom NOM", Telephone: "05 00 00 00 01", Mail: "contact1@exemple.fr" }],
     formations: [{ id: 1, Fiche: 1, Intitule: "CAP Maçon", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" },
                  { id: 2, Fiche: 1, Intitule: "CAP Couvreur", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" }],
     accomp: [{ id: 1, Fiche: 1, Groupe: "Avant la recherche", Action: "Entretien individuel", Cochee: true },
@@ -130,17 +130,16 @@ function afficher() {
   document.getElementById("resume").innerHTML = (FICHE.Soumise_le ? `<span class="pill">Envoyée</span> ` : "") +
     (n ? `<span class="pill modif">${n} modification${n > 1 ? "s" : ""}</span>` : `<span class="pill">Aucune modification</span>`);
 
-  const choix = FICHES.length > 1 ? `<p class="info">Vue SAIO : ${FICHES.length} fiches visibles.
-    <select id="choixFiche" aria-label="Fiche affichée">${FICHES.map(f => `<option value="${f.id}"${f.id === FICHE.id ? " selected" : ""}>${esc(f.Etablissement)} — ${esc(f.Site || "")}</option>`).join("")}</select></p>` : "";
+  const choix = ""; // la fiche se choisit en cliquant sur l'établissement dans le tableau de suivi
 
   // Établissement
   const etab = pli("etab", "Établissement", "", CHAMPS_FICHE.filter(([c]) => c in FICHE).map(([c, lib]) => champ("fiche", 0, c, lib, FICHE)).join(""));
 
   // Contacts
   const vivants = ETAT.contacts.map((l, i) => [l, i]).filter(([l]) => !l._suppr);
-  const contacts = vivants.map(([l, i]) => pli("contact" + i, [l.Pole || l.Fonction, l.Nom].filter(Boolean).join(" · ") || "Nouveau contact",
+  const contacts = vivants.map(([l, i]) => pli("contact" + i, [l.Fonction, l.Nom].filter(Boolean).join(" · ") || "Nouveau contact",
       !l.id ? `<span class="pill new">Nouveau</span>` : "",
-      CHAMPS_CONTACT.filter(([c]) => c in l || c !== "Fonction").map(([c, lib]) => champ("contacts", i, c, lib, l)).join("") +
+      CHAMPS_CONTACT.map(([c, lib]) => champ("contacts", i, c, lib, l)).join("") +
       `<button class="mini" data-suppr="contacts" data-i="${i}">Retirer ce contact</button>`)).join("");
   const blocContacts = pli("contacts", "Contacts", `<span class="pill">${vivants.length}</span>`,
     contacts + `<button class="ajout" data-ajout="contacts">+ Ajouter un contact</button>`);
@@ -207,7 +206,7 @@ function afficher() {
     <div class="principal">${blocFormations}${blocAccomp}${envoi}</div></div>`;
   // Fiche d'une campagne close : consultation seule (base de comparaison)
   if (SAIO() && "Code_actif" in FICHE && !FICHE.Code_actif) {
-    app.querySelectorAll("input, textarea, button").forEach(el => { if (!el.dataset.tout && el.id !== "choixFiche") el.disabled = true; });
+    app.querySelectorAll("input, textarea, button").forEach(el => { if (!el.dataset.tout) el.disabled = true; });
     const sec = app.querySelector(".principal > section:last-child"); if (sec) sec.innerHTML = `<p class="info" style="margin:0">Fiche d'une campagne close : consultation seule. Elle sert de base de comparaison.</p>`;
     app.insertAdjacentHTML("afterbegin", `<p class="bandeau err" style="margin-bottom:12px">Campagne close : consultation seule.</p>`);
   }
@@ -238,7 +237,6 @@ app.addEventListener("input", e => {
 
 app.addEventListener("change", e => {
   const el = e.target;
-  if (el.id === "choixFiche") { FICHE = FICHES.find(f => f.id === +el.value); MESSAGE = null; return charger(); }
   if (el.id === "certif") { CERTIF = el.checked; return; }
   if (el.id === "motif") { MOTIF = el.value; return; }
   if (el.dataset.coche !== undefined) { ETAT.accomp[+el.dataset.coche].Cochee = el.checked; afficher(); }
@@ -249,7 +247,7 @@ app.addEventListener("click", async e => {
   const d = b.dataset;
   if (d.statut) { ETAT.formations[+d.i].Statut = d.statut; return afficher(); }
   if (d.suppr) { const l = ETAT[d.suppr][+d.i]; if (l.id) l._suppr = true; else ETAT[d.suppr].splice(+d.i, 1); return afficher(); }
-  if (d.ajout === "contacts") { ETAT.contacts.push({ Fiche: FICHE.id, Pole: "", ...(ETAT.contacts.some(c => "Fonction" in c) || (ORIG.contacts[0] && "Fonction" in ORIG.contacts[0]) ? { Fonction: "" } : {}), Nom: "", Telephone: "", Mail: "" }); OUVERTS.add("contacts"); OUVERTS.add("contact" + (ETAT.contacts.length - 1)); return afficher(); }
+  if (d.ajout === "contacts") { ETAT.contacts.push({ Fiche: FICHE.id, Fonction: "", Nom: "", Telephone: "", Mail: "" }); OUVERTS.add("contacts"); OUVERTS.add("contact" + (ETAT.contacts.length - 1)); return afficher(); }
   if (d.tout !== undefined) { app.querySelectorAll(`details[data-pli^="${d.tout}"]`).forEach(x => { x.open = !!d.ouvre; }); return; }
   if (b.id === "ajoutFormation") return ajouterFormation();
   if (b.id === "changerFormation") { CHOIX = null; afficher(); const f = document.getElementById("nvFormation"); if (f) f.focus(); return; }
@@ -278,7 +276,7 @@ function ajouterFormation() {
 
 // ---------- Enregistrement dans Grist ----------
 const TABLES = { contacts: "Contacts", formations: "Formations", accomp: "Accompagnement" };
-const COLS = { contacts: ["Pole", "Fonction", "Nom", "Telephone", "Mail"], formations: ["Intitule", "Filiere", "Statut", "Remarque"], accomp: ["Groupe", "Action", "Cochee"] };
+const COLS = { contacts: ["Fonction", "Nom", "Telephone", "Mail"], formations: ["Intitule", "Filiere", "Statut", "Remarque"], accomp: ["Groupe", "Action", "Cochee"] };
 
 function actions(soumettre) {
   const a = [];

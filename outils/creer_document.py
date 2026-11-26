@@ -30,17 +30,17 @@ req("POST", B + "/tables", {"tables": [
         T("Presentation_accompagnement", "Text"), T("Soumise_le", DT), T("Ouverte_le", DT)]},
 ]})
 req("POST", B + "/tables/Fiches/columns", {"columns": [T("Campagne", "Ref:Campagnes"), T("Fiche_precedente", "Ref:Fiches"),
-    T("Lien_envoye_le", DT), T("Finalisee_le", DT), T("Etape_SAIO", "Choice", widgetOptions=choix("Mise en forme", "En discussion")),
+    T("Lien_envoye_le", DT), T("Finalisee_le", DT),
     T("Prochaine_action", "Text"), T("A_verifier", "Text"), T("Page_catalogue_2026", "Int"),
     F("Code_actif", "$Code if $Campagne and $Campagne.Active else \"\"", "Text")]})
 req("POST", B + "/tables", {"tables": [
     {"id": "Formations", "columns": [T("Fiche", "Ref:Fiches"), T("Intitule", "Text"), T("Filiere", "Text"),
         T("Statut", "Choice", widgetOptions=choix("Maintenue", "Fermée", "Nouvelle")), T("Remarque", "Text"), F("CodeFiche", "$Fiche.Code_actif")]},
-    {"id": "Contacts", "columns": [T("Fiche", "Ref:Fiches"), T("Pole", "Text"), T("Fonction", "Text"), T("Nom", "Text"), T("Telephone", "Text"), T("Mail", "Text"), F("CodeFiche", "$Fiche.Code_actif")]},
+    {"id": "Contacts", "columns": [T("Fiche", "Ref:Fiches"), T("Fonction", "Text"), T("Nom", "Text"), T("Telephone", "Text"), T("Mail", "Text"), F("CodeFiche", "$Fiche.Code_actif")]},
     {"id": "Accompagnement", "columns": [T("Fiche", "Ref:Fiches"), T("Groupe", "Text"), T("Action", "Text"), T("Cochee", "Bool"), F("CodeFiche", "$Fiche.Code_actif")]},
     {"id": "Referentiel", "columns": [T("Diplome", "Text"), T("Intitule", "Text"), T("Filiere", "Text")]},
     {"id": "Correspondances", "columns": [T("Fiche", "Ref:Fiches"), T("Date", "Date"), T("Type", "Choice", widgetOptions=choix("Mail envoyé", "Mail reçu", "Appel", "Note")),
-        T("Objet", "Text"), T("Resume", "Text"), T("Prochaine_action", "Text")]},
+        T("Objet", "Text"), T("Resume", "Text")]},
     {"id": "Pages_catalogue", "columns": [T("Ordre", "Numeric"), T("Titre", "Text"), T("Texte", "Text"), T("Afficher", "Bool")]},
 ]})
 try: apply([["RemoveTable", "Table1"]])
@@ -48,7 +48,7 @@ except Exception: pass
 
 # ---------- Règles d'accès (tout fermé par défaut ; un lien ?Code_= n'ouvre que sa fiche de la campagne active) ----------
 res = [("*", "*"), ("Fiches", "*"), ("Fiches", "Code"),
-       ("Fiches", "Campagne,Fiche_precedente,Lien_envoye_le,Finalisee_le,Etape_SAIO,Prochaine_action,A_verifier,Page_catalogue_2026"),
+       ("Fiches", "Campagne,Fiche_precedente,Lien_envoye_le,Finalisee_le,Prochaine_action,A_verifier,Page_catalogue_2026"),
        ("Formations", "*"), ("Contacts", "*"), ("Accompagnement", "*"), ("Referentiel", "*"), ("Campagnes", "*"), ("*SPECIAL", "SchemaEdit")]
 a = [["AddRecord", "_grist_ACLResources", -(i + 1), {"tableId": t, "colIds": c}] for i, (t, c) in enumerate(res)]
 M = "user.LinkKey.Code and "
@@ -81,7 +81,7 @@ ids = bulk("Fiches", [{**{c: f.get(c, "") for c in CH}, "Presentation_accompagne
 fo, co, ac = [], [], []
 for f, i in zip(fiches, ids):
     fo += [{"Fiche": i, "Intitule": x["Intitule"], "Filiere": x["Filiere"], "Remarque": x["Remarque"], "Statut": "Maintenue"} for x in f["formations"]]
-    co += [{"Fiche": i, "Pole": c.get("Pole", ""), "Fonction": c.get("Fonction", ""), "Nom": c["Nom"], "Telephone": c["Telephone"], "Mail": c["Mail"]} for c in f["contacts"]]
+    co += [{"Fiche": i, "Fonction": " ".join(x for x in (c.get("Pole", ""), c.get("Fonction", "")) if x), "Nom": c["Nom"], "Telephone": c["Telephone"], "Mail": c["Mail"]} for c in f["contacts"]]
     ac += [{"Fiche": i, "Groupe": x["Groupe"], "Action": x["Action"], "Cochee": True} for x in f["actions"]]
 n = (len(bulk("Formations", fo)), len(bulk("Contacts", co)), len(bulk("Accompagnement", ac)))
 print(f"document créé : {doc}")
