@@ -23,6 +23,7 @@ const lignes = t => !t || !t.id ? [] : t.id.map((id, i) => { const r = { id }; f
 const maintenant = () => Date.now() / 1000;
 const dateFr = s => { if (!s) return ""; const d = new Date(s * 1000); return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }); };
 const norm = s => String(s ?? "").trim().toLowerCase();
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 const app = document.getElementById("app");
 
 // ---------- Chargement ----------
@@ -70,6 +71,17 @@ function etape(f) {
 const recue = f => !!(f.Soumise_le || f.Finalisee_le);
 const libEtape = n => ETATS_FICHE[n] || "";
 
+// Appariement un pour un : d'abord les éléments identiques, puis par clé (chaque élément 2026 ne sert qu'une fois).
+// Évite les faux écarts quand une même formation est proposée sur plusieurs sites, ou deux contacts ont la même fonction.
+function apparier(avant, apres, identique, proche) {
+  const libres = new Set(avant), paires = new Map();
+  for (const regle of [identique, proche]) for (const n of apres) {
+    if (paires.has(n)) continue;
+    const o = [...libres].find(x => regle(x, n));
+    if (o) { paires.set(n, o); libres.delete(o); }
+  }
+  return { paires, restants: [...libres] };
+}
 function changements(f) {
   const prec = D.fiches.find(x => x.id === f.Fiche_precedente);
   if (!prec) return null;
@@ -77,32 +89,37 @@ function changements(f) {
   for (const [c, lib] of CHAMPS) if (c in f && norm(f[c]) !== norm(prec[c])) out.push({ type: "Coordonnées", lib, avant: prec[c], apres: f[c] });
   const de = (t, id) => D[t].filter(r => r.Fiche === id);
   const fo0 = de("formations", prec.id), fo1 = de("formations", f.id);
+  const memeFo = (a, b) => norm(a.Intitule) === norm(b.Intitule);
+  const fo = apparier(fo0, fo1, (a, b) => memeFo(a, b) && norm(a.Filiere) === norm(b.Filiere) && norm(a.Remarque) === norm(b.Remarque), memeFo);
   for (const n of fo1) {
-    const o = fo0.find(x => norm(x.Intitule) === norm(n.Intitule));
+    const o = fo.paires.get(n);
     if (!o) out.push({ type: "Formation", lib: "Nouvelle", apres: n.Intitule });
     else if (n.Statut === "Fermée" && o.Statut !== "Fermée") out.push({ type: "Formation", lib: "Fermée", avant: n.Intitule });
     else if (norm(n.Remarque) !== norm(o.Remarque)) out.push({ type: "Formation", lib: "Remarque · " + n.Intitule, avant: o.Remarque, apres: n.Remarque });
   }
-  for (const o of fo0) if (!fo1.find(x => norm(x.Intitule) === norm(o.Intitule))) out.push({ type: "Formation", lib: "Retirée", avant: o.Intitule });
+  for (const o of fo.restants) out.push({ type: "Formation", lib: "Retirée", avant: o.Intitule });
   const co0 = de("contacts", prec.id), co1 = de("contacts", f.id);
   // contacts rapprochés par nom, sinon par pôle / fonction
   const cle = c => norm(c.Nom) || norm(c.Fonction);
   const pareil = (a, b) => (norm(a.Nom) && norm(a.Nom) === norm(b.Nom)) || (!norm(a.Nom) && cle(a) === cle(b));
   const etiq = c => c.Fonction || "";
+  const champsCt = ["Nom", "Fonction", "Telephone", "Mail"];
+  const co = apparier(co0, co1, (a, b) => champsCt.every(c => norm(a[c]) === norm(b[c])), pareil);
   for (const n of co1) {
-    const o = co0.find(x => pareil(x, n));
+    const o = co.paires.get(n);
     if (!o) { out.push({ type: "Contact", lib: "Nouveau · " + etiq(n), apres: n.Nom }); continue; }
     for (const [c, lib] of [["Nom", "Nom"], ["Fonction", "Fonction"], ["Telephone", "Téléphone"], ["Mail", "Mail"]])
       if (norm(n[c]) !== norm(o[c])) out.push({ type: "Contact", lib: lib + " · " + etiq(n), avant: o[c], apres: n[c] });
   }
-  for (const o of co0) if (!co1.find(x => pareil(o, x))) out.push({ type: "Contact", lib: "Retiré · " + etiq(o), avant: o.Nom });
+  for (const o of co.restants) out.push({ type: "Contact", lib: "Retiré · " + etiq(o), avant: o.Nom });
   const ac0 = de("accomp", prec.id), ac1 = de("accomp", f.id);
+  const ac = apparier(ac0, ac1, (a, b) => norm(a.Action) === norm(b.Action) && !!a.Cochee === !!b.Cochee, (a, b) => norm(a.Action) === norm(b.Action));
   for (const n of ac1) {
-    const o = ac0.find(x => norm(x.Action) === norm(n.Action));
+    const o = ac.paires.get(n);
     if (!o) out.push({ type: "Accompagnement", lib: "Nouvelle action", apres: n.Action });
     else if (!!o.Cochee !== !!n.Cochee) out.push({ type: "Accompagnement", lib: n.Cochee ? "Cochée" : "Décochée", apres: n.Action });
   }
-  for (const o of ac0) if (!ac1.find(x => norm(x.Action) === norm(o.Action))) out.push({ type: "Accompagnement", lib: "Retirée", avant: o.Action });
+  for (const o of ac.restants) out.push({ type: "Accompagnement", lib: "Retirée", avant: o.Action });
   return out;
 }
 
@@ -263,7 +280,7 @@ function ligneClose(f, s) {
     return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>PDF fourni par l'établissement</td><td>${statut}</td><td><div class="boutons">${BOUTON_PDF(f)}${depot}</div></td></tr>`;
   }
   const actions = `<div class="boutons">${BOUTON_PDF(f)}</div>`;
-  return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${actions}</td></tr>`;
+  return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${pluriel(nb("formations"), "formation")} · ${pluriel(nb("contacts"), "contact")}</td><td>${statut}</td><td>${actions}</td></tr>`;
 }
 
 function ligne(f, s, close) {
