@@ -32,7 +32,7 @@ function demo() {
   const f = (id, Etablissement, Departement, extra) => ({ id, Campagne: 1, Etablissement, Site: "Site principal", Departement, Adresse: "1 rue Imaginaire", Code_postal: "00000", Ville: "Villeneuve", Telephone: "05 00 00 00 00", Mail: "contact@exemple.fr", Site_internet: "www.exemple.fr", Finalisee_le: 1, Presentation_accompagnement: "Le service accompagne les candidats dans leur recherche d'entreprise (texte fictif).", ...extra });
   D = {
     campagnes: [{ id: 1, Annee: "2027", Active: true }],
-    fiches: [f(1, "CFA Démo du Bâtiment", "Gironde"), f(2, "CFA Démo Hôtellerie", "Landes"), f(3, "CFA Démo Multisites", TOUS), f(4, "CFA Démo Commerce", "Gironde", { Finalisee_le: null })],
+    fiches: [f(1, "CFA Démo du Bâtiment", "Gironde"), f(2, "CFA Démo Hôtellerie", "Landes"), f(3, "GRETA Démo", "Autre (Greta)"), f(4, "CFA Démo Commerce", "Gironde", { Finalisee_le: null })],
     formations: [["CAP Maçon", "Bâtiment, Travaux publics", 1], ["CAP Couvreur", "Bâtiment, Travaux publics", 1], ["CAP Ébéniste", "Bois, Ameublement", 1], ["CAP Cuisine", "Hôtellerie, Restauration", 2], ["Bac pro Métiers de l'accueil", "Commerce, Vente, Logistique", 3], ["CAP Équipier polyvalent du commerce", "Commerce, Vente, Logistique", 4]]
       .map(([Intitule, Filiere, Fiche], i) => ({ id: i + 1, Fiche, Intitule, Filiere, Statut: "Maintenue", Remarque: i === 0 ? "Possible aussi sur un autre site" : "" })),
     contacts: [1, 2, 3, 4].map(n => ({ id: n, Fiche: n, Fonction: "Accueil des candidats", Nom: "Prénom NOM", Telephone: "05 00 00 00 0" + n, Mail: "contact" + n + "@exemple.fr" })),
@@ -90,7 +90,7 @@ function afficher() {
         <label class="coche"><input type="radio" name="mode" value="derniere"${MODE === "derniere" ? " checked" : ""}>Fiches non finalisées : reprendre leur dernière version finalisée (sinon les laisser hors du catalogue)</label>
         <label class="coche"><input type="radio" name="mode" value="actuelle"${MODE === "actuelle" ? " checked" : ""}>Prendre toutes les fiches telles quelles, même non finalisées (version de travail)</label>
         ${lignesDep || `<p class="etat">Aucune fiche retenue.</p>`}
-        <p class="etat">Ordre : par département, puis par établissement (ordre alphabétique). Les formations « Fermée » n'apparaissent pas.</p>
+        <p class="etat">Ordre (comme le catalogue 2026) : couverture, pages d'information, sommaire, « Tous départements » (GRETA), puis chaque département avec sa page de séparation ; établissements par ordre alphabétique. Les formations « Fermée » n'apparaissent pas.</p>
       </section>
       <section class="carte"><div class="entete"><h2>Pages d'information</h2><button class="mini" id="ajoutPage">+ Ajouter une page</button></div>
         <p class="etat">Placées après la couverture. Mise en forme : <b>**gras**</b>, liste avec « - » en début de ligne, intertitre avec « ## », lien avec [texte](adresse).</p>
@@ -113,7 +113,7 @@ async function generer() {
     const opts = {
       titre: document.getElementById("cTitre").value.trim(), sousTitre: document.getElementById("cSous").value.trim(), bas: document.getElementById("cBas").value.trim(),
       pages: [...D.pages].filter(p => p.Afficher).sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0)),
-      groupes: parDepartement(fichesRetenues()),
+      groupes: parDepartement(fichesRetenues()), annee: CAMP.Annee,
     };
     const doc = genererPdf(opts, D);
     doc.save(`catalogue-accompagnement-apprentissage-${CAMP.Annee}.pdf`);

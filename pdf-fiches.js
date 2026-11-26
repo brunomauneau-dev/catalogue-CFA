@@ -6,8 +6,11 @@
 
 const TOUS = "Tous départements";
 const nomDep = f => f.Departement || "Sans département";
-// Ordre des départements : « Tous départements » en tête, les rubriques « Autre… » (ex. « Autre (Greta) ») à la fin
-const rangDep = d => (d === TOUS ? 0 : /^autre/i.test(d) ? 2 : 1);
+// Ordre des départements (comme le catalogue 2026) : « Tous départements » / « Autre (Greta) » en tête, puis les départements
+const horsDep = d => d === TOUS || /^autre/i.test(d); // établissements présents sur plusieurs départements (GRETA)
+const rangDep = d => (horsDep(d) ? 0 : 1);
+const ARTICLES = { "Dordogne": "de la", "Gironde": "de la", "Landes": "des", "Lot-et-Garonne": "du", "Pyrénées-Atlantiques": "des" };
+const libDep = d => (horsDep(d) ? "Tous départements" : ARTICLES[d] ? `Département ${ARTICLES[d]} ${d}` : d);
 const ordreDep = (a, b) => rangDep(a) - rangDep(b) || String(a).localeCompare(String(b), "fr");
 let DONNEES = null;
 
@@ -141,11 +144,19 @@ function genererPdf(opts, donnees) {
   // 4. Départements et fiches
   const numeros = [];
   for (const [dep, fiches] of groupes) {
+    // « Tous départements » : pas de page de séparation (comme le catalogue 2026), les fiches suivent le sommaire
+    if (horsDep(dep)) {
+      const entree = { dep, page: 0, fiches: [] };
+      for (const f of fiches) entree.fiches.push({ f, page: fichePdf(f) });
+      entree.page = entree.fiches.length ? entree.fiches[0].page : doc.getNumberOfPages();
+      numeros.push(entree); continue;
+    }
     doc.addPage();
     const pDep = doc.getNumberOfPages();
     doc.setFillColor(...COUL.bleu); doc.rect(0, 0, A4.l, A4.h, "F");
-    police("normal", 12); coul(COUL.blanc); doc.text(net(dep === TOUS ? "CFA présents sur plusieurs départements" : /^autre/i.test(dep) ? "Autres établissements" : "Département"), A4.marge + 5, 70, { baseline: "top" });
-    police("bold", 30); doc.text(doc.splitTextToSize(net(dep), A4.l - 2 * A4.marge - 10), A4.marge + 5, 80, { baseline: "top" });
+    police("bold", 11); coul(COUL.blanc); doc.text(net(`ACCOMPAGNEMENT - APPRENTISSAGE ${opts.annee || ""}`.trim()), A4.marge + 5, 58, { baseline: "top" });
+    police("normal", 11); doc.text("CATALOGUE DES CFA PARTENAIRES", A4.marge + 5, 64, { baseline: "top" });
+    police("bold", 28); doc.text(doc.splitTextToSize(net(libDep(dep).toUpperCase()), A4.l - 2 * A4.marge - 10), A4.marge + 5, 80, { baseline: "top" });
     doc.setFillColor(255, 255, 255); doc.rect(A4.marge + 5, 102, 30, 1, "F");
     const deuxCol = fiches.length > 22, taille = fiches.length > 44 ? 8.5 : deuxCol ? 9.5 : 11, pas = lh(taille, 1.5);
     const parCol = deuxCol ? Math.ceil(fiches.length / 2) : fiches.length, largCol = deuxCol ? (A4.l - 2 * A4.marge - 15) / 2 : A4.l - 2 * A4.marge - 10;
@@ -168,7 +179,7 @@ function genererPdf(opts, donnees) {
       else {
         police("bold", 17); doc.text(doc.splitTextToSize(titre, A4.l - 2 * A4.marge - 40)[0], A4.marge, 8, { baseline: "top" });
         police("normal", 11); doc.text(net(f.Site || ""), A4.marge, 18, { baseline: "top" });
-        police("normal", 9); doc.text(net(nomDep(f)), A4.l - A4.marge, 9, { baseline: "top", align: "right" });
+        police("normal", 9); doc.text(net(horsDep(nomDep(f)) ? "Tous départements" : nomDep(f)), A4.l - A4.marge, 9, { baseline: "top", align: "right" });
       }
       if (!suite) fondCote(36);
     };
@@ -235,7 +246,13 @@ function genererPdf(opts, donnees) {
   // 5. Remplissage du sommaire
   {
     let n = 0, page = debutSommaire, y = 0;
-    const nouvellePage = () => { doc.setPage(page); y = 25; if (page === debutSommaire) { police("bold", 22); coul(COUL.bleu); doc.text("Sommaire", A4.marge + 5, y, { baseline: "top" }); y += 14; } };
+    const nouvellePage = () => {
+      doc.setPage(page); y = 25;
+      if (page === debutSommaire) {
+        police("bold", 18); coul(COUL.bleu); doc.text(net(`ACCOMPAGNEMENT - APPRENTISSAGE ${opts.annee || ""}`.trim()), A4.marge + 5, y, { baseline: "top" }); y += 9;
+        police("normal", 12); doc.text("CATALOGUE DES CFA PARTENAIRES", A4.marge + 5, y, { baseline: "top" }); y += 12;
+      }
+    };
     nouvellePage();
     const ligneSom = (txt, num, gras, retrait) => {
       if (y > A4.bas - 6) { if (page + 1 >= debutSommaire + nbSommaire) return; page++; nouvellePage(); }
@@ -251,7 +268,7 @@ function genererPdf(opts, donnees) {
       y += gras ? 8 : 6.2;
     };
     for (const e of numeros) {
-      y += 2; ligneSom(e.dep, e.page, true, 0);
+      y += 2; ligneSom(libDep(e.dep).toUpperCase(), e.page, true, 0);
       for (const x of e.fiches) { ligneSom(`${x.f.Etablissement || ""}${x.f.Site ? " - " + x.f.Site : ""}`, x.page, false, 5); n++; }
     }
   }
