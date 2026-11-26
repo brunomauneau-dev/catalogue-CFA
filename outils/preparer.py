@@ -18,12 +18,11 @@ def filiere(intit):
                 if sc > best: best, fil = sc, f
     return fil if best >= 0.6 else ""
 n_fil = n_nom = 0
-DEP_CP = {"24": "Dordogne", "33": "Gironde", "40": "Landes", "47": "Lot-et-Garonne", "64": "Pyrénées-Atlantiques"}
 for f in fiches:
     alertes = []
-    # pas de rubrique « Tous départements » : département d'après le code postal
-    if f["Departement"] == "Tous départements" and DEP_CP.get(str(f.get("Code_postal") or "")[:2]):
-        f["Departement"] = DEP_CP[str(f["Code_postal"])[:2]]
+    # pages « Tous départements » du catalogue 2026 : les GRETA-CFA, rangés à part
+    if f["Departement"] == "Tous départements":
+        f["Departement"] = "Autre (Greta)"
     if f["image"]: alertes.append("fiche en image dans le catalogue 2026 : tout est à saisir")
     if not f["Etablissement"]:
         f["Etablissement"] = f"[À compléter – page {f['page']} du catalogue 2026]"; n_nom += 1

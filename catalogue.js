@@ -59,7 +59,7 @@ function fichesRetenues() {
 function parDepartement(fiches) {
   const g = new Map();
   for (const f of fiches) { if (!g.has(nomDep(f))) g.set(nomDep(f), []); g.get(nomDep(f)).push(f); }
-  const ordre = [...g.keys()].sort((a, b) => (a === TOUS ? -1 : b === TOUS ? 1 : a.localeCompare(b, "fr")));
+  const ordre = [...g.keys()].sort(ordreDep);
   return ordre.map(d => [d, g.get(d).sort((a, b) => String(a.Etablissement).localeCompare(b.Etablissement, "fr", { numeric: true }) || String(a.Site).localeCompare(b.Site, "fr", { numeric: true }))]);
 }
 

@@ -153,7 +153,7 @@ function afficher() {
   const n = v => dansDep().filter(l => { const e = et(l); const [a, b] = v.split("-").map(Number); return e >= a && e <= (b ?? a); }).length;
   const ETATS = [["", "Toutes les étapes"], ["0", "À envoyer"], ["1-2", "Envoyées, en attente"], ["3", "Soumises, à vérifier"], ["4", "En discussion"], ["5", "Finalisées"]];
   const nbRetard = () => dansDep().filter(l => l.s && enRetard(l.s)).length, nbChg = () => dansDep().filter(l => chg(l)).length;
-  const deps = [...new Set(lignes.map(l => l.f.Departement || "Sans département"))].sort((a, b) => (a === TOUS ? -1 : b === TOUS ? 1 : a.localeCompare(b, "fr")));
+  const deps = [...new Set(lignes.map(l => l.f.Departement || "Sans département"))].sort(ordreDep);
   if (FILTRE.dep && !deps.includes(FILTRE.dep)) FILTRE.dep = "";
   const nbDep = d => lignes.filter(l => (l.f.Departement || "Sans département") === d).length;
   const sousOnglets = `<div class="sous-onglets" role="tablist" aria-label="Départements">
@@ -174,7 +174,7 @@ function afficher() {
     if (FILTRE.texte && !norm(l.f.Etablissement + " " + l.f.Site).includes(norm(FILTRE.texte))) return false;
     return true;
   };
-  const vis = lignes.filter(garde).sort((a, b) => String(a.f.Departement || "~").localeCompare(b.f.Departement || "~") || String(a.f.Etablissement).localeCompare(b.f.Etablissement, "fr", { numeric: true }));
+  const vis = lignes.filter(garde).sort((a, b) => ordreDep(a.f.Departement || "Sans département", b.f.Departement || "Sans département") || String(a.f.Etablissement).localeCompare(b.f.Etablissement, "fr", { numeric: true }));
   let corps = "", depCourant = null;
   for (const l of vis) {
     const dep = l.f.Departement || "Sans département";

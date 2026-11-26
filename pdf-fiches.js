@@ -6,6 +6,9 @@
 
 const TOUS = "Tous départements";
 const nomDep = f => f.Departement || "Sans département";
+// Ordre des départements : « Tous départements » en tête, les rubriques « Autre… » (ex. « Autre (Greta) ») à la fin
+const rangDep = d => (d === TOUS ? 0 : /^autre/i.test(d) ? 2 : 1);
+const ordreDep = (a, b) => rangDep(a) - rangDep(b) || String(a).localeCompare(String(b), "fr");
 let DONNEES = null;
 
 let PDF_PRET = null;
@@ -141,7 +144,7 @@ function genererPdf(opts, donnees) {
     doc.addPage();
     const pDep = doc.getNumberOfPages();
     doc.setFillColor(...COUL.bleu); doc.rect(0, 0, A4.l, A4.h, "F");
-    police("normal", 12); coul(COUL.blanc); doc.text(net(dep === TOUS ? "CFA présents sur plusieurs départements" : "Département"), A4.marge + 5, 70, { baseline: "top" });
+    police("normal", 12); coul(COUL.blanc); doc.text(net(dep === TOUS ? "CFA présents sur plusieurs départements" : /^autre/i.test(dep) ? "Autres établissements" : "Département"), A4.marge + 5, 70, { baseline: "top" });
     police("bold", 30); doc.text(doc.splitTextToSize(net(dep), A4.l - 2 * A4.marge - 10), A4.marge + 5, 80, { baseline: "top" });
     doc.setFillColor(255, 255, 255); doc.rect(A4.marge + 5, 102, 30, 1, "F");
     const deuxCol = fiches.length > 22, taille = fiches.length > 44 ? 8.5 : deuxCol ? 9.5 : 11, pas = lh(taille, 1.5);
