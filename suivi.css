@@ -33,4 +33,4 @@ tr.detail>td{background:#FAFBFC;padding:14px}
 @media (max-width:640px){.form-ech{grid-template-columns:1fr}}
 .lien-fiche{font:inherit;font-weight:700;color:var(--bleu);background:none;border:0;padding:0;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .lien-fiche:hover{color:var(--bleu-fonce)}
-tr.choisie td{background:var(--bleu-pale)}
+tr.selection td{background:var(--bleu-pale)}

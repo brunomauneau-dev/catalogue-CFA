@@ -169,7 +169,7 @@ function ligne(f) {
   if (e >= 3 && e < 6) actions += `<button class="mini prim" data-finaliser="${f.id}">Finaliser</button>`;
   if (e === 6) actions += `<button class="mini" data-definaliser="${f.id}">Rouvrir</button>`;
   actions += `<button class="mini" data-ouvrir="${f.id}" aria-expanded="${OUVERTE === f.id}">${OUVERTE === f.id ? "Fermer" : "Détails"}</button>`;
-  return `<tr${VUE === f.id ? ' class="choisie"' : ""}><td><button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></td>
+  return `<tr${VUE === f.id ? ' class="selection"' : ""}><td><button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></td>
     <td><div class="etapes">${barres}</div><span class="etiq${enRetard(f) ? " retard" : ""}">${esc(libEtape(e))}${enRetard(f) ? " · sans réponse" : ""}</span></td>
     <td>${nbCh}</td><td>${derTxt}</td><td>${esc(f.Prochaine_action || "")}</td><td><div class="boutons">${actions}</div></td></tr>`;
 }
