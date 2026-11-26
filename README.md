@@ -31,6 +31,10 @@ Tables utilisées en plus : `Campagnes` (Annee, Date_limite, Active, URL_formula
 (Fiche, Date, Type, Objet, Resume) ; colonnes de suivi dans `Fiches` (Campagne, Fiche_precedente,
 Lien_envoye_le, Ouverte_le, Soumise_le, Finalisee_le, Etape_SAIO, Prochaine_action, Code_actif).
 
+« Préparer une nouvelle campagne » recopie les fiches (dernière version finalisée par défaut) dans une campagne
+inactive, avec de nouveaux codes et un lien vers la fiche d'origine ; les formations fermées ne sont pas reprises.
+« Activer cette campagne » la rend active : les liens des autres campagnes cessent alors de fonctionner.
+
 ## Référentiel des intitulés
 
 `referentiel/intitules.json` : référentiel **provisoire**, construit à partir des libellés du catalogue 2026,

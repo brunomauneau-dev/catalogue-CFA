@@ -13,6 +13,7 @@ const JOUR = 86400;
 
 let D = { fiches: [], formations: [], contacts: [], accomp: [], corresp: [], campagnes: [] };
 let CAMP = null, FILTRE = { etape: "", dep: "", texte: "", retard: false }, OUVERTE = null, MSG = null;
+let PANNEAU = null; // "nouvelle" (préparer la campagne suivante) ou "activer" (confirmation)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const lignes = t => !t || !t.id ? [] : t.id.map((id, i) => { const r = { id }; for (const k in t) r[k] = t[k][i]; return r; });
@@ -107,7 +108,9 @@ function enRetard(f) { // lien envoyé, pas soumise, rien depuis 7 jours
 function afficher() {
   const camp = CAMP;
   document.getElementById("titre").textContent = camp ? `Suivi de la campagne ${camp.Annee}` : "Suivi des fiches";
-  document.getElementById("campagne").innerHTML = `<select id="choixCampagne" aria-label="Campagne">${D.campagnes.map(c => `<option value="${c.id}"${camp && c.id === camp.id ? " selected" : ""}>Campagne ${esc(c.Annee)}${c.Active ? " (active)" : ""}</option>`).join("")}</select>`;
+  document.getElementById("campagne").innerHTML = `<div class="boutons"><select id="choixCampagne" aria-label="Campagne" style="width:auto">${D.campagnes.map(c => `<option value="${c.id}"${camp && c.id === camp.id ? " selected" : ""}>Campagne ${esc(c.Annee)}${c.Active ? " (active)" : " (inactive)"}</option>`).join("")}</select>
+    ${camp && !camp.Active ? `<button class="mini prim" data-panneau="activer">Activer cette campagne</button>` : ""}
+    <button class="mini" data-panneau="nouvelle">Préparer une nouvelle campagne</button></div>`;
   if (!camp) { app.innerHTML = `<p class="alerte">Aucune campagne. Ajoutez une ligne dans la table Campagnes.</p>`; return; }
 
   const fiches = D.fiches.filter(f => f.Campagne === camp.id);
@@ -142,7 +145,7 @@ function afficher() {
     if (OUVERTE === f.id) corps += `<tr class="detail"><td colspan="6">${detail(f)}</td></tr>`;
   }
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
-  app.innerHTML = `${bandeau}${compteurs}${filtres}<div class="boite"><table class="suivi">
+  app.innerHTML = `${bandeau}${panneau()}${compteurs}${filtres}<div class="boite"><table class="suivi">
     <thead><tr><th>Établissement · site</th><th>Étape</th><th>Changements</th><th>Dernier échange</th><th>Prochaine action</th><th>Actions</th></tr></thead>
     <tbody>${corps || `<tr><td colspan="6" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
 }
@@ -204,6 +207,93 @@ function mail(f, relance) {
   return `mailto:${encodeURIComponent(f.Mail || "")}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
 }
 
+// ---------- Nouvelle campagne ----------
+// Recopie les fiches dans une nouvelle campagne (inactive tant qu'on ne l'active pas) :
+// nouveaux codes, lien vers la fiche d'origine (pour la comparaison), formations fermées non reprises.
+const SUIVI = ["Code", "Campagne", "Fiche_precedente", "Lien_envoye_le", "Ouverte_le", "Soumise_le", "Finalisee_le", "Etape_SAIO", "Prochaine_action"];
+let COLONNES = null; // colonnes de données (hors formules) par table, lues dans les métadonnées
+
+async function colonnesDonnees() {
+  if (COLONNES) return COLONNES;
+  const t = lignes(await grist.docApi.fetchTable("_grist_Tables")), c = lignes(await grist.docApi.fetchTable("_grist_Tables_column"));
+  COLONNES = {};
+  for (const tab of t) COLONNES[tab.tableId] = c.filter(x => x.parentId === tab.id && !x.isFormula && !x.colId.startsWith("gristHelper") && x.colId !== "manualSort").map(x => x.colId);
+  return COLONNES;
+}
+
+function sources(campSource, mode) {
+  // mode "finalisee" : la fiche si elle est finalisée, sinon sa dernière version finalisée ; mode "actuelle" : la fiche telle quelle
+  const res = [];
+  for (const f of D.fiches.filter(x => x.Campagne === campSource.id)) {
+    if (mode === "actuelle" || f.Finalisee_le) { res.push(f); continue; }
+    let p = D.fiches.find(x => x.id === f.Fiche_precedente);
+    while (p && !p.Finalisee_le) p = D.fiches.find(x => x.id === p.Fiche_precedente);
+    res.push(p || f);
+  }
+  return res;
+}
+
+function panneau() {
+  if (PANNEAU === "activer") return `<div class="bandeau err" style="margin-bottom:12px">Activer la campagne ${esc(CAMP.Annee)} ?
+    Les liens des autres campagnes cesseront aussitôt de fonctionner pour les établissements.
+    <div class="boutons" style="margin-top:10px"><button class="btn" data-activer="${CAMP.id}">Oui, activer</button><button class="btn sec" data-panneau="">Annuler</button></div></div>`;
+  if (PANNEAU !== "nouvelle") return "";
+  const src = CAMP, an = String((parseInt(src.Annee, 10) || new Date().getFullYear()) + 1);
+  const nbF = D.fiches.filter(f => f.Campagne === src.id).length, nbFin = D.fiches.filter(f => f.Campagne === src.id && f.Finalisee_le).length;
+  return `<section class="carte" style="margin-bottom:16px"><h2>Préparer une nouvelle campagne à partir de ${esc(src.Annee)}</h2>
+    <div class="form-ech">
+      <label class="champ">Année<input id="nAnnee" value="${esc(an)}"></label>
+      <label class="champ">Date limite de retour<input type="date" id="nLimite"></label></div>
+    <p class="etat">${nbF} fiche(s) dans la campagne ${esc(src.Annee)}, dont ${nbFin} finalisée(s). Fiches non finalisées :</p>
+    <label class="coche"><input type="radio" name="nMode" value="finalisee" checked>reprendre leur dernière version finalisée (sinon la version actuelle)</label>
+    <label class="coche"><input type="radio" name="nMode" value="actuelle">reprendre la version actuelle, même non finalisée</label>
+    <p class="etat">Les formations marquées « Fermée » ne sont pas reprises ; les « Nouvelle » deviennent « Maintenue ».
+      La nouvelle campagne reste <b>inactive</b> : les liens actuels continuent de fonctionner jusqu'à ce que vous l'activiez.</p>
+    <div class="boutons"><button class="btn" id="creerCampagne">Créer la campagne</button><button class="btn sec" data-panneau="">Annuler</button></div></section>`;
+}
+
+async function creerCampagne() {
+  const annee = document.getElementById("nAnnee").value.trim();
+  const lim = document.getElementById("nLimite").value;
+  const mode = (document.querySelector('input[name="nMode"]:checked') || {}).value || "finalisee";
+  if (!annee) { MSG = { cl: "err", txt: "Indiquez l'année de la campagne." }; return afficher(); }
+  if (D.campagnes.some(c => String(c.Annee).trim() === annee)) { MSG = { cl: "err", txt: `La campagne ${annee} existe déjà.` }; return afficher(); }
+  const src = sources(CAMP, mode);
+  if (!DANS_GRIST) { MSG = { cl: "ok", txt: `Démonstration : la campagne ${annee} serait créée avec ${src.length} fiche(s).` }; PANNEAU = null; return afficher(); }
+  try {
+    const cols = await colonnesDonnees();
+    const garder = (table, r, exclure) => { const o = {}; for (const c of cols[table] || []) if (!exclure.includes(c) && c in r) o[c] = r[c]; return o; };
+    const [campId] = (await grist.docApi.applyUserActions([["AddRecord", "Campagnes", null, {
+      Annee: annee, Active: false, Date_limite: lim ? Date.parse(lim) / 1000 : null, URL_formulaire: CAMP.URL_formulaire || "" }]])).retValues;
+    const nouvelles = src.map(f => ({ ...garder("Fiches", f, SUIVI), Code: crypto.randomUUID(), Campagne: campId, Fiche_precedente: f.id }));
+    const ids = nouvelles.length ? (await grist.docApi.applyUserActions([bulk("Fiches", nouvelles)])).retValues[0] : [];
+    const corresp = new Map(src.map((f, i) => [f.id, ids[i]]));
+    const enfants = [];
+    for (const [table, cle] of [["Formations", "formations"], ["Contacts", "contacts"], ["Accompagnement", "accomp"]]) {
+      const rows = [];
+      for (const r of D[cle]) {
+        if (!corresp.has(r.Fiche)) continue;
+        if (table === "Formations" && r.Statut === "Fermée") continue;
+        const o = { ...garder(table, r, ["Fiche"]), Fiche: corresp.get(r.Fiche) };
+        if (table === "Formations" && o.Statut === "Nouvelle") o.Statut = "Maintenue";
+        rows.push(o);
+      }
+      if (rows.length) enfants.push(bulk(table, rows));
+    }
+    if (enfants.length) await grist.docApi.applyUserActions(enfants);
+    PANNEAU = null;
+    MSG = { cl: "ok", txt: `Campagne ${annee} créée (inactive) : ${ids.length} fiche(s) reprises. Vérifiez-la, puis cliquez sur « Activer cette campagne ».` };
+    CAMP = { id: campId };
+    await charger();
+  } catch (err) { MSG = { cl: "err", txt: "Création interrompue : " + (err && err.message ? err.message : err) }; afficher(); }
+}
+
+function bulk(table, rows) {
+  const cols = [...new Set(rows.flatMap(Object.keys))], o = {};
+  for (const c of cols) o[c] = rows.map(r => (c in r ? r[c] : null));
+  return ["BulkAddRecord", table, rows.map(() => null), o];
+}
+
 async function appliquer(actions, txt) {
   if (!DANS_GRIST) { MSG = { cl: "ok", txt: "Démonstration : " + txt }; return afficher(); }
   try { await grist.docApi.applyUserActions(actions); MSG = { cl: "ok", txt }; await charger(); }
@@ -231,7 +321,7 @@ document.addEventListener("change", e => {
 app.addEventListener("input", e => {
   if (e.target.id === "fTexte") { FILTRE.texte = e.target.value; const pos = e.target.selectionStart; afficher(); const x = document.getElementById("fTexte"); x.focus(); x.setSelectionRange(pos, pos); }
 });
-app.addEventListener("click", async e => {
+document.addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset, fiche = id => D.fiches.find(f => f.id === +id);
   if (d.filtreEtape !== undefined) { FILTRE.etape = FILTRE.etape === d.filtreEtape ? "" : d.filtreEtape; FILTRE.retard = false; return afficher(); }
@@ -241,6 +331,12 @@ app.addEventListener("click", async e => {
   if (d.relancer) return envoyer(fiche(d.relancer), true);
   if (d.finaliser) return appliquer([["UpdateRecord", "Fiches", +d.finaliser, { Finalisee_le: maintenant() }]], "Fiche finalisée.");
   if (d.definaliser) return appliquer([["UpdateRecord", "Fiches", +d.definaliser, { Finalisee_le: null }]], "Fiche rouverte.");
+  if (d.panneau !== undefined) { PANNEAU = d.panneau || null; MSG = null; return afficher(); }
+  if (b.id === "creerCampagne") { b.disabled = true; b.textContent = "Création en cours…"; return creerCampagne(); }
+  if (d.activer) {
+    PANNEAU = null;
+    return appliquer(D.campagnes.map(c => ["UpdateRecord", "Campagnes", c.id, { Active: c.id === +d.activer }]), "Campagne activée : les liens des autres campagnes ne fonctionnent plus.");
+  }
   if (b.id === "envoyerTous") {
     const aEnvoyer = D.fiches.filter(f => f.Campagne === CAMP.id && etape(f) === 0);
     if (!aEnvoyer.length) { MSG = { cl: "ok", txt: "Aucune fiche à envoyer." }; return afficher(); }
