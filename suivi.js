@@ -154,7 +154,7 @@ function afficher() {
     ${deps.map(d => `<button role="tab" data-dep="${esc(d)}" aria-selected="${FILTRE.dep === d}">${esc(d)} <span>${nbDep(d)}</span></button>`).join("")}</div>`;
   const filtres = `<div class="filtres">
     <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
-    ${close ? `<button class="puce-filtre" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}">Avec changements · ${nbChg()}</button>` : ""}
+
     ${FILTRE.dep ? "" : `<span class="boutons" style="margin-left:auto"><button class="mini" data-tout-dep="ouvrir">Tout déplier</button><button class="mini" data-tout-dep="replier">Tout replier</button></span>`}</div>`;
   // Récapitulatif de la campagne (marge de droite) : chaque compte est un filtre
   let recap = "";
@@ -188,18 +188,18 @@ function afficher() {
     if (!FILTRE.dep && dep !== depCourant) {
       depCourant = dep;
       const ouvert = !REPLIES.has(dep);
-      corps += `<tr class="dep"><td colspan="5"><button class="dep-pli" data-replier="${esc(dep)}" aria-expanded="${ouvert}"><span class="chevron" aria-hidden="true"></span>${esc(dep)} <span class="nb">${vis.filter(x => (x.f.Departement || "Sans département") === dep).length}</span></button></td></tr>`;
+      corps += `<tr class="dep"><td colspan="${close ? 4 : 5}"><button class="dep-pli" data-replier="${esc(dep)}" aria-expanded="${ouvert}"><span class="chevron" aria-hidden="true"></span>${esc(dep)} <span class="nb">${vis.filter(x => (x.f.Departement || "Sans département") === dep).length}</span></button></td></tr>`;
     }
     if (!FILTRE.dep && REPLIES.has(dep)) continue;
     corps += ligne(l.f, l.s, close);
-    if (l.s && OUVERTE === l.s.id) corps += `<tr class="detail"><td colspan="5">${detail(l.s, close)}</td></tr>`;
+    if (l.s && OUVERTE === l.s.id) corps += `<tr class="detail"><td colspan="${close ? 4 : 5}">${detail(l.s, close)}</td></tr>`;
   }
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
-  const contexte = close ? `Campagne ${esc(camp.Annee)} close, en consultation seule : chaque fiche est comparée à sa fiche ${esc(anCours)}.` : "";
+  const contexte = close ? `Campagne ${esc(camp.Annee)} close, en consultation : les fiches telles que publiées en ${esc(camp.Annee)}. La comparaison avec ${esc(anCours)} se trouve dans l'onglet de la campagne en cours.` : "";
   app.innerHTML = `${bandeau}${panneau()}<div class="mise${recap ? " avec-recap" : ""}"><div class="principal">${contexte ? `<p class="contexte">${contexte}</p>` : ""}${sousOnglets}${filtres}<div class="boite"><table class="suivi">
-    <thead>${close ? `<tr><th>Établissement · site</th><th>Contenu ${esc(camp.Annee)}</th><th>Statut ${esc(camp.Annee)}</th><th>Changements en ${esc(anCours)}</th><th>Actions</th></tr>`
+    <thead>${close ? `<tr><th>Établissement · site</th><th>Contenu ${esc(camp.Annee)}</th><th>Statut ${esc(camp.Annee)}</th><th>Actions</th></tr>`
       : `<tr><th>Établissement · site</th><th>État ${esc(anCours)}</th><th>Changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</th><th>Dernier échange</th><th>Actions</th></tr>`}</thead>
-    <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div></div>${recap}</div>`;
+    <tbody>${corps || `<tr><td colspan="${close ? 4 : 5}" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div></div>${recap}</div>`;
 }
 
 const ICONE_PDF = `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><path d="M6 2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#EB4A50"/><path d="M14.5 2v5.5H20" fill="#F9C2C4"/><text x="12" y="17.6" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="6.6" fill="#fff">PDF</text></svg>`;
@@ -217,7 +217,7 @@ const nomFichier = f => String(f.Etablissement || "fiche").normalize("NFD").repl
 async function pdfGreta(f, voir) {
   try {
     const o = await pdfOriginal(f);
-    if (!o) { MSG = { cl: "err", txt: `Aucun PDF fourni pour ${f.Etablissement}.` }; return afficher(); }
+    if (!o) { const err = DOC_ERREURS.get(f.id); MSG = { cl: "err", txt: `Aucun PDF lisible pour ${f.Etablissement}${err ? " : " + err : ""}. Déposez-le avec « Déposer le PDF ».` }; return afficher(); }
     const nom = `${nomFichier(f)}-${o.annee}.pdf`;
     if (voir) afficherOctets(o.octets, `${f.Etablissement} · PDF ${o.annee} fourni par l'établissement`, nom);
     else enregistrerOctets(o.octets, nom);
@@ -241,11 +241,12 @@ async function deposerPdf(id, fic) {
   if (fic.size > 4e6) { MSG = { cl: "err", txt: "PDF trop lourd (4 Mo maximum) : demandez une version allégée." }; return afficher(); }
   const data = await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(fic); });
   const f = D.fiches.find(x => x.id === id);
-  if (!DANS_GRIST) { Object.assign(f, { PDF_depose: data, Soumise_le: maintenant() }); MSG = { cl: "ok", txt: `Démonstration : PDF de ${f.Etablissement} déposé.` }; return afficher(); }
+  const champs = recue(f) ? { PDF_depose: data } : { PDF_depose: data, Soumise_le: maintenant() };
+  if (!DANS_GRIST) { Object.assign(f, champs); MSG = { cl: "ok", txt: `Démonstration : PDF de ${f.Etablissement} déposé.` }; return afficher(); }
   const a = [];
   if (!("PDF_depose" in f)) a.push(["AddColumn", "Fiches", "PDF_depose", { type: "Any", isFormula: false, label: "PDF_depose" }]);
-  a.push(["UpdateRecord", "Fiches", id, { PDF_depose: data, Soumise_le: maintenant() }]);
-  await appliquer(a, `PDF de ${f.Etablissement} déposé : la fiche est reçue.`);
+  a.push(["UpdateRecord", "Fiches", id, champs]);
+  await appliquer(a, `PDF ${CAMP_DE(f)} de ${f.Etablissement} déposé${champs.Soumise_le ? " : la fiche est reçue" : ""}.`);
 }
 
 // Chevron de début de ligne : déplie changements, échanges et prochaine action (remplace l'ancien bouton « Détails »)
@@ -256,16 +257,13 @@ const celluleNom = (f, s, titre) => `<div class="nom-ligne">${pli(s)}<div><butto
 function ligneClose(f, s) {
   const nom = celluleNom(f, s, "Consulter la fiche (lecture seule)");
   const nb = t => D[t].filter(r => r.Fiche === f.id && r.Statut !== "Fermée").length;
-  const ch = s ? changements(s) : null;
-  const chg = !s ? `<span class="sous">pas de fiche en cours</span>` : !ch.length ? `<span class="sous">aucun</span>`
-    : `<button class="lien-fiche" data-ouvrir="${s.id}" data-vers="changements">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const statut = recue(f) ? "Reçue" : `<span class="sous">non reçue</span>`;
   if (horsDep(nomDep(f))) {
-    const chG = !s ? `<span class="sous">pas de fiche en cours</span>` : recue(s) ? `<span class="pill p-ok">PDF ${esc(CAMP_DE(s))} déposé</span>` : `<span class="sous">PDF ${esc(CAMP_DE(s))} pas encore reçu</span>`;
-    return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>PDF fourni par l'établissement</td><td>${statut}</td><td>${chG}</td><td><div class="boutons">${BOUTON_PDF(f)}</div></td></tr>`;
+    const depot = `<label class="mini depot-pdf" title="Déposer le PDF ${esc(CAMP_DE(f))} fourni par l'établissement, sans retouche">${pdfDepose(f) ? "Remplacer le PDF" : "Déposer le PDF"}<input type="file" accept="application/pdf" data-depot-pdf="${f.id}" hidden></label>`;
+    return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>PDF fourni par l'établissement</td><td>${statut}</td><td><div class="boutons">${depot}${BOUTON_PDF(f)}</div></td></tr>`;
   }
   const actions = `<div class="boutons">${BOUTON_PDF(f)}</div>`;
-  return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${chg}</td><td>${actions}</td></tr>`;
+  return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${actions}</td></tr>`;
 }
 
 function ligne(f, s, close) {
@@ -311,7 +309,7 @@ function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison
     : ch.length ? ch.map(d => `<div class="diff"><span class="pill">${esc(d.type)}</span><span>${esc(d.lib)} :</span>${d.avant ? `<span class="avant">${esc(d.avant)}</span>` : ""}${d.avant && d.apres ? "→" : ""}${d.apres ? `<span class="apres">${esc(d.apres)}</span>` : ""}</div>`).join("")
     : `<p class="etat">Aucun changement par rapport à l'an dernier.</p>`;
   const ech = echanges(f).map(x => `<div class="ech"><b>${dateFr(x.Date)} · ${esc(x.Type)}</b> — ${esc(x.Objet || "")}<span class="sous">${esc(x.Resume || "")}</span></div>`).join("") || `<p class="etat">Aucun échange enregistré.</p>`;
-  if (lecture) return `<div class="grille-detail"><section id="sec-changements"><h2>${horsDep(nomDep(f)) ? "Document" : "Changements par rapport à l'an dernier"}</h2>${diffs}</section><section id="sec-echanges"><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section></div>`;
+  if (lecture) return `<section id="sec-echanges"><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section>`;
   return `<div class="grille-detail">
     <section id="sec-changements"><h2>${horsDep(nomDep(f)) ? "Document" : "Changements par rapport à l'an dernier"}</h2>${diffs}
       <label class="champ">Prochaine action<input data-prochaine="${f.id}" value="${esc(f.Prochaine_action || "")}" placeholder="Ex. : relancer le 20/01"></label></section>

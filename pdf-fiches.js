@@ -37,6 +37,7 @@ const idsPieces = v => (Array.isArray(v) ? v.filter(x => typeof x === "number") 
 // PDF déposé depuis le suivi (colonne PDF_depose, texte « data: ») prioritaire sur la pièce jointe Document_fourni
 const pdfDepose = f => (typeof f.PDF_depose === "string" && f.PDF_depose.startsWith("data:application/pdf") ? f.PDF_depose : null);
 const dataVersOctets = d => { const bin = atob(d.split(",")[1]), o = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i); return o.buffer; };
+const DOC_ERREURS = new Map(); // fiche -> raison de l'échec de lecture du document fourni
 async function chargerDocuments(fiches) {
   const docs = new Map(), avec = fiches.filter(f => pdfDepose(f) || idsPieces(f.Document_fourni).length);
   if (!avec.length) return docs;
@@ -50,11 +51,12 @@ async function chargerDocuments(fiches) {
         if (typeof grist === "undefined" || window.parent === window) continue;
         acces = acces || await grist.docApi.getAccessToken({ readOnly: true });
         const rep = await fetch(`${acces.baseUrl}/attachments/${idsPieces(f.Document_fourni)[0]}/download?auth=${encodeURIComponent(acces.token)}`);
+        if (!rep.ok) throw new Error(`pièce jointe refusée par Grist (HTTP ${rep.status})`);
         octets = await rep.arrayBuffer();
       }
       const pdf = await window.PDFLib.PDFDocument.load(octets, { ignoreEncryption: true });
       docs.set(f.id, { octets, nb: pdf.getPageCount() });
-    } catch (e) { /* pièce jointe illisible : la fiche saisie est utilisée */ }
+    } catch (e) { DOC_ERREURS.set(f.id, String(e && e.message || e)); /* pièce jointe illisible : la fiche saisie est utilisée */ }
   }
   return docs;
 }

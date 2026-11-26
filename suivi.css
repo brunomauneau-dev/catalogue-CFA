@@ -126,3 +126,10 @@ body>main.contenu{border-radius:0 0 10px 10px;padding-bottom:24px;margin-bottom:
 .recap-filtre:focus-visible{outline:2px solid var(--bleu);outline-offset:-2px}
 .recap-date{margin:10px 0 0;font-size:13px;color:var(--doux)}
 @media (max-width:980px){.mise.avec-recap{grid-template-columns:1fr}.recap{position:static;order:-1}}
+/* Lisibilité du tableau : pas de coupure dans les pastilles, liens et boutons ; largeurs équilibrées */
+.etat-fiche,.lien-doux,.boutons .mini,.depot-pdf{white-space:nowrap}
+table.suivi th:first-child{width:36%}
+table.suivi td:nth-child(2){min-width:150px}
+table.suivi td:last-child{width:1%}
+table.suivi td:last-child .boutons{flex-wrap:nowrap}
+table.suivi tbody tr:not(.dep):not(.detail):hover>td{background:#FAFAFF}
