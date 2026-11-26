@@ -155,9 +155,10 @@ async function generer() {
       pages: [...D.pages].filter(p => p.Afficher).sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0)),
       groupes: parDepartement(fichesRetenues()), annee: CAMP.Annee,
     };
+    opts.documents = await chargerDocuments(opts.groupes.flatMap(([, l]) => l)); // PDF fournis (GRETA)
     const doc = genererPdf(opts, D);
-    doc.save(`catalogue-accompagnement-apprentissage-${CAMP.Annee}.pdf`);
-    MSG = { cl: "ok", txt: `Catalogue généré : ${doc.getNumberOfPages()} pages, ${opts.groupes.reduce((n, [, l]) => n + l.length, 0)} fiches.` };
+    await telechargerPdf(doc, opts, `catalogue-accompagnement-apprentissage-${CAMP.Annee}.pdf`);
+    MSG = { cl: "ok", txt: `Catalogue généré : ${doc.getNumberOfPages()} pages, ${opts.groupes.reduce((n, [, l]) => n + l.length, 0)} fiches${opts.documents.size ? `, dont ${opts.documents.size} en PDF fourni` : ""}.` };
   } catch (err) { MSG = { cl: "err", txt: "Génération impossible : " + (err && err.message ? err.message : err) }; }
   afficher();
 }

@@ -25,6 +25,56 @@ function chargerPdf() {
   return PDF_PRET = PDF_PRET || chargerLogo().then(() => undefined).then(() => new Promise((ok, ko) => { const s = document.createElement("script"); s.src = "lib/jspdf.umd.min.js"; s.onload = ok; s.onerror = () => ko(new Error("bibliothèque PDF introuvable")); document.head.appendChild(s); }));
 }
 
+// ---------- Documents PDF fournis tels quels (fiches GRETA) ----------
+// Colonne Document_fourni (pièce jointe Grist) : le PDF remplace la fiche générée, page pour page.
+let PDFLIB_PRET = null;
+function chargerPdfLib() {
+  if (window.PDFLib) return Promise.resolve();
+  return PDFLIB_PRET = PDFLIB_PRET || new Promise((ok, ko) => { const s = document.createElement("script"); s.src = "lib/pdf-lib.min.js"; s.onload = ok; s.onerror = () => ko(new Error("bibliothèque pdf-lib introuvable")); document.head.appendChild(s); });
+}
+const idsPieces = v => (Array.isArray(v) ? v.filter(x => typeof x === "number") : typeof v === "number" ? [v] : []);
+// fiches -> Map(id de fiche -> { octets, nb }) ; ignore ce qui n'est pas un PDF lisible
+async function chargerDocuments(fiches) {
+  const docs = new Map(), avec = fiches.filter(f => idsPieces(f.Document_fourni).length);
+  if (!avec.length || typeof grist === "undefined" || window.parent === window) return docs;
+  await chargerPdfLib();
+  const { token, baseUrl } = await grist.docApi.getAccessToken({ readOnly: true });
+  for (const f of avec) {
+    try {
+      const id = idsPieces(f.Document_fourni)[0];
+      const rep = await fetch(`${baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(token)}`);
+      const octets = await rep.arrayBuffer();
+      const pdf = await window.PDFLib.PDFDocument.load(octets, { ignoreEncryption: true });
+      docs.set(f.id, { octets, nb: pdf.getPageCount() });
+    } catch (e) { /* pièce jointe illisible : la fiche saisie est utilisée */ }
+  }
+  return docs;
+}
+// Remplace les pages réservées par les pages des documents fournis (les liens du sommaire restent valides)
+async function finaliserPdf(doc, opts) {
+  const places = opts._places || [];
+  if (!places.length) return new Uint8Array(doc.output("arraybuffer"));
+  await chargerPdfLib();
+  const { PDFDocument } = window.PDFLib;
+  const sortie = await PDFDocument.load(doc.output("arraybuffer"));
+  for (const pl of places) {
+    const src = await PDFDocument.load(pl.octets, { ignoreEncryption: true });
+    const pages = await sortie.embedPdf(src, src.getPageIndices());
+    pages.forEach((pg, k) => {
+      const cible = sortie.getPage(pl.pages[k] - 1), { width, height } = cible.getSize();
+      const e = Math.min(width / pg.width, height / pg.height);
+      cible.drawPage(pg, { x: (width - pg.width * e) / 2, y: (height - pg.height * e) / 2, xScale: e, yScale: e });
+    });
+  }
+  return await sortie.save();
+}
+async function telechargerPdf(doc, opts, nom) {
+  const octets = await finaliserPdf(doc, opts);
+  const url = URL.createObjectURL(new Blob([octets], { type: "application/pdf" }));
+  const a = document.createElement("a"); a.href = url; a.download = nom; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+}
+
 // Polices standard du PDF : jeu de caractères WinAnsi. On remplace ce qui n'y est pas.
 const REMPL = { "’": "'", "‘": "'", "“": "\"", "”": "\"", "–": "-", "—": "-", "…": "...", " ": " ", " ": " ", "→": "->", "≈": "~", "✓": "", "•": "•" };
 const OK_WINANSI = new Set([..."€‚ƒ„†‡ˆ‰Š‹ŒŽ˜™š›œžŸ•"]);
@@ -51,6 +101,8 @@ const codeDep = d => (horsDep(d) ? "AC" : CODES_DEP[d] || String(d).slice(0, 2).
 
 function genererPdf(opts, donnees) {
   DONNEES = donnees;
+  opts._places = []; // pages réservées aux documents fournis
+  const reservee = n => opts._places.some(pl => pl.pages.includes(n));
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const coul = c => { doc.setTextColor(...c); };
@@ -165,7 +217,8 @@ function genererPdf(opts, donnees) {
     for (const [, fiches] of opts.groupes) for (const f of fiches) fichePdf(f);
     doc.deletePage(1);
     const nb = doc.getNumberOfPages();
-    for (let i = 1; i <= nb; i++) { doc.setPage(i); police("normal", 8); coul([140, 150, 165]); doc.text(`${net(opts.titre)}  -  ${i}/${nb}`, A4.l / 2, A4.h - 9, { align: "center", baseline: "top" }); }
+    opts._places.forEach(pl => { pl.pages = pl.pages.map(n => n - 1); }); // la page 1 a été retirée
+    for (let i = 1; i <= nb; i++) { if (reservee(i)) continue; doc.setPage(i); police("normal", 8); coul([140, 150, 165]); doc.text(`${net(opts.titre)}  -  ${i}/${nb}`, A4.l / 2, A4.h - 9, { align: "center", baseline: "top" }); }
     return doc;
   }
 
@@ -255,6 +308,13 @@ function genererPdf(opts, donnees) {
   }
 
   function fichePdf(f) {
+    const fourni = opts.documents && opts.documents.get(f.id);
+    if (fourni) { // pages blanches réservées, remplies ensuite par le document fourni (finaliserPdf)
+      const pages = [];
+      for (let k = 0; k < fourni.nb; k++) { doc.addPage(); pages.push(doc.getNumberOfPages()); }
+      opts._places.push({ octets: fourni.octets, pages });
+      return pages[0];
+    }
     const titre = net(f.Etablissement || "");
     const C0 = CD(nomDep(f));
     const enTete = (suite) => {
@@ -363,6 +423,7 @@ function genererPdf(opts, donnees) {
   // 6. Pieds de page
   const total = doc.getNumberOfPages();
   for (let i = 2; i <= total; i++) {
+    if (reservee(i)) continue; // page d'un document fourni : il a son propre pied de page
     doc.setPage(i); police("normal", 8); coul([95, 104, 118]);
     doc.text(`${net(pied)}  ·  ${i}`, A4.l / 2, A4.h - 9, { align: "center", baseline: "top" });
   }

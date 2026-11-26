@@ -58,6 +58,16 @@ Pages d'information : table `Pages_catalogue` (Ordre, Titre, Texte, Afficher), m
 mise en forme : `**gras**`, `- ` liste, `## ` intertitre, `[texte](adresse)`.
 Colonne facultative `Presentation_accompagnement` dans `Fiches` (texte d'introduction de l'accompagnement).
 
+Habillages du PDF : « guide » (par défaut, une couleur par département et un onglet en bord de page),
+« fidèle au catalogue 2026 » ou « modernisé » ; image de couverture pleine page facultative.
+
+### Fiches fournies en PDF (GRETA)
+
+Les établissements de la rubrique « Autre (Greta) » transmettent leur fiche en PDF : le SAIO la dépose dans la colonne
+`Document_fourni` (pièce jointe) de la table `Fiches`. Le catalogue et l'export d'une fiche l'insèrent tels quels
+(bibliothèque `lib/pdf-lib.min.js`, licence MIT), à la place de la fiche générée. Dans le suivi : « PDF fourni »,
+« PDF reçu » (passe la fiche à l'étape « Soumise ») et mail demandant le PDF à jour au lieu du lien du formulaire.
+
 ## Référentiel des intitulés
 
 `referentiel/intitules.json` : référentiel **provisoire**, construit à partir des libellés du catalogue 2026,

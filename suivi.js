@@ -203,9 +203,11 @@ async function exporterPdf(f) {
   try {
     await chargerPdf();
     const an = CAMP_DE(f);
-    const doc = genererPdf({ seul: true, titre: `Catalogue Accompagnement apprentissage ${an} - ${f.Etablissement || ""}`, pages: [], groupes: [[nomDep(f), [f]]] }, D);
+    const opts = { seul: true, style: "guide", annee: an, titre: `Catalogue Accompagnement apprentissage ${an} - ${f.Etablissement || ""}`, pages: [], groupes: [[nomDep(f), [f]]] };
+    opts.documents = await chargerDocuments([f]); // PDF fourni (GRETA) : exporté tel quel
+    const doc = genererPdf(opts, D);
     const nom = String(f.Etablissement || "fiche").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-    doc.save(`fiche-${nom}-${an}.pdf`);
+    await telechargerPdf(doc, opts, `fiche-${nom}-${an}.pdf`);
   } catch (err) { MSG = { cl: "err", txt: "Export PDF impossible : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 
@@ -232,13 +234,16 @@ function ligne(f, s, close) {
   const dates = [s.Lien_envoye_le, s.Ouverte_le, s.Soumise_le, null, s.Finalisee_le];
   const barres = ETAPES.map((lib, i) => `<i class="${i < e ? "f" : i === e && e >= 3 && e < 5 ? "c" : ""}" title="${esc(lib)}${dates[i] ? " · " + dateFr(dates[i]) : ""}"></i>`).join("");
   const ch = changements(s);
-  const nbCh = ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
+  const pdfFourni = horsDep(nomDep(s)), aPdf = idsPieces(s.Document_fourni).length > 0;
+  const nbCh = pdfFourni ? (aPdf ? `<span class="pill p-ok">PDF fourni</span>` : `<span class="pill">PDF à recevoir</span>`)
+    : ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
     : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const der = echanges(s)[0];
   const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Soumise · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "—";
   let actions = "";
   if (!close) {
     if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Envoyer</button>`;
+    if (pdfFourni && aPdf && e < 3) actions += `<button class="mini prim" data-pdf-recu="${s.id}" title="Le PDF à jour est déposé dans la colonne Document_fourni">PDF reçu</button>`;
     if (e === 1 || e === 2) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
     if (e >= 3 && e < 5) actions += `<button class="mini prim" data-finaliser="${s.id}">Finaliser</button>`;
     if (e === 5) actions += `<button class="mini" data-definaliser="${s.id}">Rouvrir</button>`;
@@ -275,7 +280,14 @@ function lienFiche(f) { return (CAMP.URL_formulaire || "") + (String(CAMP.URL_fo
 function mail(f, relance) {
   const an = CAMP.Annee, lim = CAMP.Date_limite ? new Date(CAMP.Date_limite * 1000).toLocaleDateString("fr-FR") : "";
   const objet = `${relance ? "Relance - " : ""}Catalogue Accompagnement apprentissage ${an} - mise à jour de votre fiche - ${f.Etablissement || ""}`;
-  const corps = [
+  const pdfFourni = horsDep(nomDep(f)); // GRETA : fiche fournie en PDF, pas de formulaire
+  const corps = pdfFourni ? [
+    "Madame, Monsieur,", "",
+    relance ? `Sauf erreur de notre part, nous n'avons pas encore reçu la mise à jour de votre fiche pour le catalogue ${an}.`
+            : `Nous préparons l'édition ${an} du catalogue Accompagnement apprentissage. Comme l'an dernier, votre fiche figure dans le catalogue sous la forme du document PDF que vous nous transmettez.`,
+    "", `Merci de nous renvoyer en réponse à ce mail la version ${an} de ce document (format PDF, A4)${lim ? `, avant le ${lim}` : ""}. Si rien n'a changé, il suffit de nous le confirmer.`,
+    "", "Cordialement,", "Le SAIO",
+  ].join("\n") : [
     "Madame, Monsieur,", "",
     relance ? `Sauf erreur de notre part, nous n'avons pas encore reçu la mise à jour de votre fiche pour le catalogue ${an}.`
             : `Nous préparons l'édition ${an} du catalogue Accompagnement apprentissage. Votre fiche de l'an dernier est déjà remplie dans le formulaire ci-dessous : il suffit de corriger ce qui a changé (formations, contacts, coordonnées, accompagnement) puis de l'envoyer.`,
@@ -376,8 +388,8 @@ async function appliquer(actions, txt) {
 }
 
 async function envoyer(f, relance) {
-  if (!CAMP.URL_formulaire) { MSG = { cl: "err", txt: "Renseignez l'adresse du formulaire (colonne URL_formulaire de la campagne)." }; return afficher(); }
-  if (!f.Code) { MSG = { cl: "err", txt: "Cette fiche n'a pas de code : impossible de créer son lien." }; return afficher(); }
+  if (!horsDep(nomDep(f)) && !CAMP.URL_formulaire) { MSG = { cl: "err", txt: "Renseignez l'adresse du formulaire (colonne URL_formulaire de la campagne)." }; return afficher(); }
+  if (!horsDep(nomDep(f)) && !f.Code) { MSG = { cl: "err", txt: "Cette fiche n'a pas de code : impossible de créer son lien." }; return afficher(); }
   window.open(mail(f, relance), "_blank");
   const auj = Math.floor(Date.now() / 86400000) * 86400;
   const a = [["AddRecord", "Correspondances", null, { Fiche: f.id, Date: auj, Type: "Mail envoyé", Objet: relance ? "Relance" : "Envoi du lien du formulaire" }]];
@@ -409,6 +421,7 @@ document.addEventListener("click", async e => {
   if (d.fermerQuandMeme !== undefined) return fermerTiroir(true);
   if (d.resterTiroir !== undefined) { document.getElementById("tAlerte").innerHTML = ""; return; }
   if (d.pdf) return exporterPdf(fiche(d.pdf));
+  if (d.pdfRecu) return appliquer([["UpdateRecord", "Fiches", +d.pdfRecu, { Soumise_le: maintenant() }]], "PDF reçu : la fiche passe à l'étape « Soumise ».");
   if (d.ouvrir) { OUVERTE = OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; return afficher(); }
   if (d.envoyer) return envoyer(fiche(d.envoyer), false);
   if (d.relancer) return envoyer(fiche(d.relancer), true);
