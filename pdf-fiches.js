@@ -9,9 +9,14 @@ const nomDep = f => f.Departement || "Sans département";
 let DONNEES = null;
 
 let PDF_PRET = null;
+let LOGO = null; // logo de l'académie (image PNG en data URL), pour la couverture
+function chargerLogo() {
+  return fetch("img/logo-academie.png").then(r => (r.ok ? r.blob() : null)).then(b => b && new Promise(ok => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(b); }))
+    .then(d => { LOGO = d || null; }).catch(() => { LOGO = null; });
+}
 function chargerPdf() {
-  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
-  return PDF_PRET = PDF_PRET || new Promise((ok, ko) => { const s = document.createElement("script"); s.src = "lib/jspdf.umd.min.js"; s.onload = ok; s.onerror = () => ko(new Error("bibliothèque PDF introuvable")); document.head.appendChild(s); });
+  if (window.jspdf && window.jspdf.jsPDF) return LOGO ? Promise.resolve() : chargerLogo();
+  return PDF_PRET = PDF_PRET || chargerLogo().then(() => undefined).then(() => new Promise((ok, ko) => { const s = document.createElement("script"); s.src = "lib/jspdf.umd.min.js"; s.onload = ok; s.onerror = () => ko(new Error("bibliothèque PDF introuvable")); document.head.appendChild(s); }));
 }
 
 // Polices standard du PDF : jeu de caractères WinAnsi. On remplace ce qui n'y est pas.
@@ -20,7 +25,7 @@ const OK_WINANSI = new Set([..."€‚ƒ„†‡ˆ‰Š‹ŒŽ˜™š›œžŸ�
 const net = s => [...String(s ?? "").normalize("NFC")].map(c => REMPL[c] ?? c).join("").split("").map(c => (c.charCodeAt(0) < 256 || OK_WINANSI.has(c) ? c : "?")).join("");
 
 const A4 = { l: 210, h: 297, marge: 15, bas: 280 };
-const COUL = { bleu: [31, 78, 140], bleuPale: [234, 241, 251], gris: [241, 244, 249], texte: [17, 24, 39], doux: [75, 85, 99], blanc: [255, 255, 255] };
+const COUL = { bleu: [0, 0, 145], bleuPale: [234, 241, 251], gris: [241, 244, 249], texte: [17, 24, 39], doux: [75, 85, 99], blanc: [255, 255, 255] };
 const lh = (taille, inter = 1.3) => taille * 0.3528 * inter;
 
 function genererPdf(opts, donnees) {
@@ -104,8 +109,9 @@ function genererPdf(opts, donnees) {
     return doc;
   }
 
-  // 1. Couverture
+  // 1. Couverture (logo de l'académie sur une tuile blanche)
   doc.setFillColor(...COUL.bleu); doc.rect(0, 0, A4.l, A4.h, "F");
+  if (LOGO) { try { doc.setFillColor(255, 255, 255); doc.rect(A4.marge, 18, 52, 42, "F"); doc.addImage(LOGO, "PNG", A4.marge + 5, 22, 42, 42 * 147 / 198); } catch (e) { /* logo illisible : couverture sans logo */ } }
   doc.setFillColor(255, 255, 255); doc.rect(A4.marge, 150, 40, 1.2, "F");
   police("bold", 30); coul(COUL.blanc);
   doc.text(doc.splitTextToSize(net(opts.titre), A4.l - 2 * A4.marge), A4.marge, 110, { baseline: "top" });
