@@ -12,6 +12,7 @@ const INTEGRE = window.CATALOGUE_INTEGRE || null;
 const DANS_GRIST = window.parent !== window;
 let D = { fiches: [], formations: [], contacts: [], accomp: [], campagnes: [], pages: [] };
 let CAMP = null, MODE = "derniere", MSG = null, OUVERTES = new Set();
+let STYLE = "guide", COUV = null, COUV_NOM = ""; // habillage du PDF ; image de couverture choisie (data URL)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const lignes = t => !t || !t.id ? [] : t.id.map((id, i) => { const r = { id }; for (const k in t) r[k] = t[k][i]; return r; });
@@ -40,6 +41,7 @@ function demo() {
     pages: [{ id: 1, Ordre: 1, Titre: "Quels sont mes droits et mes obligations ?", Afficher: true, Texte: "Texte de démonstration.\n\n- **Gras** entre doubles astérisques\n- Lien : [Parcoursup](https://www.parcoursup.fr)\n\n## Intertitre\nParagraphe ordinaire." }],
   };
   CAMP = D.campagnes[0];
+  window.CATALOGUE_DEMO = D; // données fictives, pour les essais hors de Grist
   afficher();
 }
 
@@ -83,15 +85,6 @@ function majApercu(id) {
   const v = c => { const el = racine.querySelector(`[data-p="${id}"][data-c="${c}"]`); return el ? el.value : ""; };
   const box = racine.querySelector(`[data-apercu="${id}"]`); if (box) box.innerHTML = apercuHtml(v("Titre"), v("Texte"));
 }
-// PDF de la seule page d'information, avec le texte en cours de saisie (même s'il n'est pas encore enregistré)
-async function apercuPdf(id) {
-  try {
-    await chargerPdf();
-    const v = c => { const el = racine.querySelector(`[data-p="${id}"][data-c="${c}"]`); return el ? el.value : ""; };
-    const doc = genererPdf({ seulementPages: true, groupes: [], pages: [{ Titre: v("Titre"), Texte: v("Texte") }] }, D);
-    doc.save(`apercu-page-${id}.pdf`);
-  } catch (err) { MSG = { cl: "err", txt: "Aperçu impossible : " + (err && err.message ? err.message : err) }; afficher(); }
-}
 
 // ---------- Écran ----------
 function afficher() {
@@ -111,7 +104,7 @@ function afficher() {
         <label class="coche"><input type="checkbox" data-p="${p.id}" data-c="Afficher"${p.Afficher ? " checked" : ""}>Afficher dans le catalogue</label>
         <div class="edition-page">
           <label class="champ">Texte<textarea rows="14" data-p="${p.id}" data-c="Texte">${esc(p.Texte)}</textarea></label>
-          <div class="champ">Aperçu (mise à jour pendant la saisie)<div class="apercu-page" data-apercu="${p.id}">${apercuHtml(p.Titre, p.Texte)}</div></div>
+          <div class="champ">Aperçu (mise à jour pendant la saisie)<div class="apercu-page style-${STYLE}" data-apercu="${p.id}">${apercuHtml(p.Titre, p.Texte)}</div></div>
         </div>
         <div class="boutons"><button class="mini prim" data-enregistrer="${p.id}">Enregistrer cette page</button><button class="mini" data-apercu-pdf="${p.id}">Aperçu PDF exact</button><button class="mini" data-supprimer="${p.id}">Supprimer</button></div>
       </div></details>`).join("");
@@ -131,20 +124,34 @@ function afficher() {
     </div>
     <div class="cote">
       <section class="carte"><h2>Couverture</h2>
-        <label class="champ">Titre<input id="cTitre" value="${esc("Accompagnement - apprentissage " + CAMP.Annee)}"></label>
-        <label class="champ">Sous-titre<input id="cSous" value="Catalogue des CFA partenaires"></label>
-        <label class="champ">Mention en bas de couverture<input id="cBas" value="SAIO"></label></section>
+        <label class="champ">Habillage<select id="cStyle"><option value="guide"${STYLE === "guide" ? " selected" : ""}>Guide (une couleur par département)</option><option value="original"${STYLE === "original" ? " selected" : ""}>Fidèle au catalogue 2026 (vert et framboise)</option><option value="moderne"${STYLE === "moderne" ? " selected" : ""}>Modernisé (bleu France)</option></select></label>
+        <label class="champ">Image de couverture (facultatif : page entière, PNG ou JPEG)<input type="file" id="cImage" accept="image/png,image/jpeg"></label>
+        ${COUV ? `<p class="etat">Couverture : ${esc(COUV_NOM)} <button class="mini" id="cSansImage">Retirer</button></p>` : `<p class="etat">Sans image, la couverture est composée avec le titre, l'année et le logo.</p>`}
+        <label class="champ">Titre<input id="cTitre" value="Catalogue de l'accompagnement vers l'apprentissage"></label>
+        <label class="champ">Sous-titre (facultatif)<input id="cSous" value=""></label>
+        <label class="champ">Mention en bas de couverture<input id="cBas" value="Service régional académique de l'information, de l'orientation et de la lutte contre le décrochage scolaire (SRAIOLDS)"></label></section>
       <section class="carte"><button class="btn" id="generer"${ret.length ? "" : " disabled"}>Générer le PDF</button>
         <p class="etat">Le fichier est téléchargé par votre navigateur.</p></section>
     </div></div>`;
 }
 
 
+// PDF de la seule page d'information, avec le texte en cours de saisie (même s'il n'est pas encore enregistré)
+async function apercuPdf(id) {
+  try {
+    await chargerPdf();
+    const v = c => { const el = racine.querySelector(`[data-p="${id}"][data-c="${c}"]`); return el ? el.value : ""; };
+    const doc = genererPdf({ seulementPages: true, style: STYLE, annee: CAMP.Annee, groupes: [], pages: [{ Titre: v("Titre"), Texte: v("Texte") }] }, D);
+    doc.save(`apercu-page-${id}.pdf`);
+  } catch (err) { MSG = { cl: "err", txt: "Aperçu impossible : " + (err && err.message ? err.message : err) }; afficher(); }
+}
+
 async function generer() {
   try {
     await chargerPdf();
     const opts = {
       titre: document.getElementById("cTitre").value.trim(), sousTitre: document.getElementById("cSous").value.trim(), bas: document.getElementById("cBas").value.trim(),
+      style: STYLE, couverture: COUV,
       pages: [...D.pages].filter(p => p.Afficher).sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0)),
       groupes: parDepartement(fichesRetenues()), annee: CAMP.Annee,
     };
@@ -167,11 +174,18 @@ racine.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixCampagne") { CAMP = D.campagnes.find(c => c.id === +el.value); MSG = null; return afficher(); }
   if (el.name === "mode") { MODE = el.value; return afficher(); }
+  if (el.id === "cStyle") { STYLE = el.value; racine.querySelectorAll(".apercu-page").forEach(x => { x.className = `apercu-page style-${STYLE}`; }); return; }
+  if (el.id === "cImage" && el.files && el.files[0]) {
+    const fic = el.files[0], lect = new FileReader();
+    lect.onload = () => { COUV = lect.result; COUV_NOM = fic.name; afficher(); };
+    lect.readAsDataURL(fic);
+  }
 });
 racine.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset;
   if (d.apercuPdf) return apercuPdf(+d.apercuPdf);
+  if (b.id === "cSansImage") { COUV = null; COUV_NOM = ""; return afficher(); }
   if (b.id === "generer") { b.disabled = true; b.textContent = "Génération…"; return generer(); }
   if (b.id === "ajoutPage") {
     const ordre = Math.max(0, ...D.pages.map(p => p.Ordre || 0)) + 1;
