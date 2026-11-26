@@ -140,7 +140,7 @@ function afficher() {
   const close = ONGLET === "closes";
   const anCours = active ? String(active.Annee) : "en cours";
   const lignes = D.fiches.filter(f => f.Campagne === camp.id).map(f => ({ f, s: close ? suivante(f) : f }));
-  const et = l => (l.s ? etape(l.s) : -1), chg = l => (l.s ? (changements(l.s) || []).length : 0);
+  const et = l => (l.s ? etape(l.s) : -1), chg = l => (l.s && !horsDep(nomDep(l.s)) ? (changements(l.s) || []).length : 0);
   const depDe = l => l.f.Departement || "Sans département";
   const dansDep = () => lignes.filter(l => !FILTRE.dep || depDe(l) === FILTRE.dep);
   const n = v => dansDep().filter(l => { const e = et(l); const [a, b] = v.split("-").map(Number); return e >= a && e <= (b ?? a); }).length;
@@ -192,16 +192,34 @@ function afficher() {
 const ICONE_PDF = `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><path d="M6 2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E1000F"/><path d="M14.5 2v5.5H20" fill="#F7A5A9"/><text x="12" y="17.6" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="6.6" fill="#fff">PDF</text></svg>`;
 const BOUTON_PDF = (f, an) => `<button class="ico-pdf" data-pdf="${f.id}" title="Télécharger la fiche${an ? " " + an : ""} en PDF" aria-label="Télécharger la fiche${an ? " " + an : ""} en PDF">${ICONE_PDF}</button>`;
 
-// Export PDF d'une fiche (même mise en page que dans le catalogue)
+// GRETA : le PDF de communication fourni par l'établissement, tel quel (jamais remis en page ni retouché)
+async function pdfOriginal(f) {
+  for (let x = f; x; x = D.fiches.find(y => y.id === x.Fiche_precedente)) {
+    const doc = (await chargerDocuments([x])).get(x.id);
+    if (doc) return { octets: new Uint8Array(doc.octets), annee: CAMP_DE(x) };
+  }
+  return null;
+}
+const nomFichier = f => String(f.Etablissement || "fiche").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+async function pdfGreta(f, voir) {
+  try {
+    const o = await pdfOriginal(f);
+    if (!o) { MSG = { cl: "err", txt: `Aucun PDF fourni pour ${f.Etablissement}.` }; return afficher(); }
+    const nom = `${nomFichier(f)}-${o.annee}.pdf`;
+    if (voir) afficherOctets(o.octets, `${f.Etablissement} · PDF ${o.annee} fourni par l'établissement`, nom);
+    else enregistrerOctets(o.octets, nom);
+  } catch (err) { MSG = { cl: "err", txt: "PDF illisible : " + (err && err.message ? err.message : err) }; afficher(); }
+}
+
+// Export PDF d'une fiche (même mise en page que dans le catalogue) ; GRETA : document fourni, tel quel
 async function exporterPdf(f) {
+  if (horsDep(nomDep(f))) return pdfGreta(f, false);
   try {
     await chargerPdf();
     const an = CAMP_DE(f);
     const opts = { seul: true, style: "guide", annee: an, titre: `Catalogue Accompagnement apprentissage ${an} - ${f.Etablissement || ""}`, pages: [], groupes: [[nomDep(f), [f]]] };
-    opts.documents = await chargerDocuments([f]); // PDF fourni (GRETA) : exporté tel quel
     const doc = genererPdf(opts, D);
-    const nom = String(f.Etablissement || "fiche").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-    await telechargerPdf(doc, opts, `fiche-${nom}-${an}.pdf`);
+    await telechargerPdf(doc, opts, `fiche-${nomFichier(f)}-${an}.pdf`);
   } catch (err) { MSG = { cl: "err", txt: "Export PDF impossible : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 
@@ -219,7 +237,7 @@ async function deposerPdf(id, fic) {
 
 // Chevron de début de ligne : déplie changements, échanges et prochaine action (remplace l'ancien bouton « Détails »)
 const pli = s => s ? `<button class="pli-ligne" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}" title="${OUVERTE === s.id ? "Replier" : "Déplier : changements et échanges"}" aria-label="${OUVERTE === s.id ? "Replier" : "Déplier"} le suivi de ${esc(s.Etablissement)}"><span class="chevron" aria-hidden="true"></span></button>` : `<span class="pli-vide"></span>`;
-const celluleNom = (f, s, titre) => `<div class="nom-ligne">${pli(s)}<div><button class="lien-fiche" data-voir="${f.id}" title="${titre}">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></div></div>`;
+const celluleNom = (f, s, titre) => `<div class="nom-ligne">${pli(s)}<div><button class="lien-fiche" ${horsDep(nomDep(f)) ? `data-voir-pdf="${f.id}" title="Voir le PDF fourni par l'établissement"` : `data-voir="${f.id}" title="${titre}"`}>${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></div></div>`;
 
 // f : fiche affichée (nom cliquable) ; s : fiche de la campagne en cours (étape, changements, actions) ; close : onglet des campagnes closes
 function ligneClose(f, s) {
@@ -229,6 +247,10 @@ function ligneClose(f, s) {
   const chg = !s ? `<span class="sous">pas de fiche en cours</span>` : !ch.length ? `<span class="sous">aucun</span>`
     : `<button class="lien-fiche" data-ouvrir="${s.id}" data-vers="changements">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const statut = recue(f) ? "Reçue" : `<span class="sous">non reçue</span>`;
+  if (horsDep(nomDep(f))) {
+    const chG = !s ? `<span class="sous">pas de fiche en cours</span>` : recue(s) ? `<span class="pill p-ok">PDF ${esc(CAMP_DE(s))} déposé</span>` : `<span class="sous">PDF ${esc(CAMP_DE(s))} pas encore reçu</span>`;
+    return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>PDF fourni par l'établissement</td><td>${statut}</td><td>${chG}</td><td><div class="boutons">${BOUTON_PDF(f)}</div></td></tr>`;
+  }
   const actions = `<div class="boutons">${BOUTON_PDF(f)}</div>`;
   return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${chg}</td><td>${actions}</td></tr>`;
 }
@@ -253,9 +275,14 @@ function ligne(f, s, close) {
   const derTxt = `<button class="lien-fiche lien-doux" data-ouvrir="${s.id}" data-vers="echanges" title="Voir les échanges et en noter un">${derBrut || `<span class="ajout-ech">+ Noter un échange</span>`}</button>`;
   let actions = "";
   if (!close) {
-    if (e === 0) actions += `<button class="mini${pdfFourni ? "" : " prim"}" data-envoyer="${s.id}">Envoyer</button>`;
-    if (pdfFourni) actions += `<label class="mini${e === 2 ? "" : " prim"} depot-pdf" title="PDF reçu de l'établissement">${e === 2 ? "Remplacer le PDF" : "Déposer le PDF reçu"}<input type="file" accept="application/pdf" data-depot-pdf="${s.id}" hidden></label>`;
-    if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
+    if (pdfFourni) { // GRETA : on demande le PDF, puis on le dépose tel qu'il est reçu
+      if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Demander le PDF</button>`;
+      if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
+      actions += `<label class="mini${e === 1 ? " prim" : ""} depot-pdf" title="Déposer le PDF reçu de l'établissement, sans retouche">${e === 2 ? "Remplacer le PDF" : "Déposer le PDF reçu"}<input type="file" accept="application/pdf" data-depot-pdf="${s.id}" hidden></label>`;
+    } else {
+      if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Envoyer</button>`;
+      if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
+    }
   }
   actions = `<div class="boutons">${actions}${BOUTON_PDF(f, esc(CAMP_DE(f)))}</div>`;
   return `<tr${sel}><td>${nom}</td>
@@ -266,13 +293,14 @@ function ligne(f, s, close) {
 function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison seule)
   const e = etape(f);
   const ch = changements(f);
-  const diffs = ch === null ? `<p class="etat">Pas de fiche l'an dernier : rien à comparer.</p>`
+  const diffs = horsDep(nomDep(f)) ? `<p class="etat">Fiche fournie en PDF par l'établissement : elle est reprise telle quelle dans le catalogue, sans comparaison champ par champ. <button class="lien-fiche" data-voir-pdf="${f.id}">Voir le PDF</button></p>`
+    : ch === null ? `<p class="etat">Pas de fiche l'an dernier : rien à comparer.</p>`
     : ch.length ? ch.map(d => `<div class="diff"><span class="pill">${esc(d.type)}</span><span>${esc(d.lib)} :</span>${d.avant ? `<span class="avant">${esc(d.avant)}</span>` : ""}${d.avant && d.apres ? "→" : ""}${d.apres ? `<span class="apres">${esc(d.apres)}</span>` : ""}</div>`).join("")
     : `<p class="etat">Aucun changement par rapport à l'an dernier.</p>`;
   const ech = echanges(f).map(x => `<div class="ech"><b>${dateFr(x.Date)} · ${esc(x.Type)}</b> — ${esc(x.Objet || "")}<span class="sous">${esc(x.Resume || "")}</span></div>`).join("") || `<p class="etat">Aucun échange enregistré.</p>`;
-  if (lecture) return `<div class="grille-detail"><section id="sec-changements"><h2>Changements par rapport à l'an dernier</h2>${diffs}</section><section id="sec-echanges"><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section></div>`;
+  if (lecture) return `<div class="grille-detail"><section id="sec-changements"><h2>${horsDep(nomDep(f)) ? "Document" : "Changements par rapport à l'an dernier"}</h2>${diffs}</section><section id="sec-echanges"><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section></div>`;
   return `<div class="grille-detail">
-    <section id="sec-changements"><h2>Changements par rapport à l'an dernier</h2>${diffs}
+    <section id="sec-changements"><h2>${horsDep(nomDep(f)) ? "Document" : "Changements par rapport à l'an dernier"}</h2>${diffs}
       <label class="champ">Prochaine action<input data-prochaine="${f.id}" value="${esc(f.Prochaine_action || "")}" placeholder="Ex. : relancer le 20/01"></label></section>
     <section id="sec-echanges"><h2>Correspondances</h2>${ech}
       <div class="form-ech">
@@ -430,6 +458,7 @@ document.addEventListener("click", async e => {
   if (d.fermerQuandMeme !== undefined) return fermerTiroir(true);
   if (d.resterTiroir !== undefined) { document.getElementById("tAlerte").innerHTML = ""; return; }
   if (d.pdf) return exporterPdf(fiche(d.pdf));
+  if (d.voirPdf) return pdfGreta(fiche(d.voirPdf), true);
   if (d.ouvrir) {
     OUVERTE = d.vers ? +d.ouvrir : OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; afficher();
     const cible = d.vers && document.getElementById("sec-" + d.vers);

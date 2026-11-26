@@ -87,8 +87,9 @@ function enregistrerOctets(octets, nom) {
   setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
 }
 // Aperçu : le PDF s'affiche dans une fenêtre à l'intérieur du widget (lecteur du navigateur), sans téléchargement
-async function afficherPdf(doc, opts, titre, nom) {
-  const octets = await finaliserPdf(doc, opts);
+async function afficherPdf(doc, opts, titre, nom) { afficherOctets(await finaliserPdf(doc, opts), titre, nom); }
+// Affiche des octets PDF tels quels (ex. document fourni par un GRETA, sans aucune retouche)
+function afficherOctets(octets, titre, nom) {
   const url = URL.createObjectURL(new Blob([octets], { type: "application/pdf" }));
   const fond = document.createElement("div");
   fond.className = "visionneuse";
