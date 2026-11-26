@@ -12,7 +12,7 @@ const INTEGRE = window.CATALOGUE_INTEGRE || null;
 const DANS_GRIST = window.parent !== window;
 let D = { fiches: [], formations: [], contacts: [], accomp: [], campagnes: [], pages: [] };
 let CAMP = null, MODE = "derniere", MSG = null, OUVERTES = new Set();
-let STYLE = "guide", COUV = null, COUV_NOM = ""; // habillage du PDF ; image de couverture choisie (data URL)
+const STYLE = "guide"; // habillage du PDF (les autres restent disponibles dans pdf-fiches.js)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const lignes = t => !t || !t.id ? [] : t.id.map((id, i) => { const r = { id }; for (const k in t) r[k] = t[k][i]; return r; });
@@ -104,7 +104,7 @@ function afficher() {
         <label class="coche"><input type="checkbox" data-p="${p.id}" data-c="Afficher"${p.Afficher ? " checked" : ""}>Afficher dans le catalogue</label>
         <div class="edition-page">
           <label class="champ">Texte<textarea rows="14" data-p="${p.id}" data-c="Texte">${esc(p.Texte)}</textarea></label>
-          <div class="champ">Aperçu (mise à jour pendant la saisie)<div class="apercu-page style-${STYLE}" data-apercu="${p.id}">${apercuHtml(p.Titre, p.Texte)}</div></div>
+          <div class="champ">Aperçu (mise à jour pendant la saisie)<div class="apercu-page style-guide" data-apercu="${p.id}">${apercuHtml(p.Titre, p.Texte)}</div></div>
         </div>
         <div class="boutons"><button class="mini prim" data-enregistrer="${p.id}">Enregistrer cette page</button><button class="mini" data-apercu-pdf="${p.id}">Aperçu PDF exact</button><button class="mini" data-supprimer="${p.id}">Supprimer</button></div>
       </div></details>`).join("");
@@ -123,15 +123,10 @@ function afficher() {
         ${blocPages || `<p class="etat">Aucune page.</p>`}</section>
     </div>
     <div class="cote">
-      <section class="carte"><h2>Couverture</h2>
-        <label class="champ">Habillage<select id="cStyle"><option value="guide"${STYLE === "guide" ? " selected" : ""}>Guide (une couleur par département)</option><option value="original"${STYLE === "original" ? " selected" : ""}>Fidèle au catalogue 2026 (vert et framboise)</option><option value="moderne"${STYLE === "moderne" ? " selected" : ""}>Modernisé (bleu France)</option></select></label>
-        <label class="champ">Page de garde (facultatif : PDF, PNG ou JPEG, format A4)<input type="file" id="cImage" accept="application/pdf,image/png,image/jpeg"></label>
-        ${COUV ? `<p class="etat">Page de garde choisie : ${esc(COUV_NOM)}</p><div class="boutons"><button class="mini prim" id="cMemoriser">Mémoriser pour la campagne ${esc(CAMP.Annee)}</button><button class="mini" id="cSansImage">Retirer</button></div>`
-          : aCouvCampagne() ? `<p class="etat">Page de garde mémorisée pour la campagne ${esc(CAMP.Annee)} : elle est utilisée. Choisir un fichier ci-dessus la remplace.</p><div class="boutons"><button class="mini" id="cOublier">Ne plus l'utiliser</button></div>`
-          : `<p class="etat">Sans page de garde, la couverture est composée avec le titre, l'année et le logo.</p>`}
-        <label class="champ">Titre<input id="cTitre" value="Catalogue de l'accompagnement vers l'apprentissage"></label>
-        <label class="champ">Sous-titre (facultatif)<input id="cSous" value=""></label>
-        <label class="champ">Mention en bas de couverture<input id="cBas" value="Service régional académique de l'information, de l'orientation et de la lutte contre le décrochage scolaire (SRAIOLDS)"></label></section>
+      <section class="carte"><h2>Page de garde</h2>
+        <label class="champ">Déposer la page de garde (PDF, format A4)<input type="file" id="cImage" accept="application/pdf"></label>
+        ${aCouvCampagne() ? `<p class="etat">Page de garde ${esc(CAMP.Annee)} déposée : elle ouvrira le catalogue. Déposer un autre PDF la remplace.</p><div class="boutons"><button class="mini" id="cOublier">Retirer</button></div>`
+          : `<p class="etat">Aucune page de garde : une couverture simple (titre, année, logo) sera composée.</p>`}</section>
       <section class="carte"><button class="btn" id="generer"${ret.length ? "" : " disabled"}>Générer le PDF</button>
         <p class="etat">Le fichier est téléchargé par votre navigateur.</p></section>
     </div></div>`;
@@ -168,8 +163,8 @@ async function generer() {
   try {
     await chargerPdf();
     const opts = {
-      titre: document.getElementById("cTitre").value.trim(), sousTitre: document.getElementById("cSous").value.trim(), bas: document.getElementById("cBas").value.trim(),
-      style: STYLE, couverture: COUV || await couvertureCampagne(),
+      titre: "Catalogue de l'accompagnement vers l'apprentissage", sousTitre: "", bas: "Service régional académique de l'information, de l'orientation et de la lutte contre le décrochage scolaire (SRAIOLDS)",
+      style: STYLE, couverture: await couvertureCampagne(),
       pages: [...D.pages].filter(p => p.Afficher).sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0)),
       groupes: parDepartement(fichesRetenues()), annee: CAMP.Annee,
     };
@@ -183,7 +178,10 @@ async function generer() {
 
 // ---------- Interactions ----------
 async function appliquer(actions, txt) {
-  if (!DANS_GRIST) { MSG = { cl: "ok", txt: "Démonstration : " + txt }; return afficher(); }
+  if (!DANS_GRIST) {
+    for (const a of actions) if (a[0] === "UpdateRecord" && a[1] === "Campagnes") Object.assign(D.campagnes.find(c => c.id === a[2]), a[3]);
+    MSG = { cl: "ok", txt: "Démonstration : " + txt }; return afficher();
+  }
   try { await grist.docApi.applyUserActions(actions); MSG = { cl: "ok", txt }; await charger(); }
   catch (err) { MSG = { cl: "err", txt: "Refusé : " + (err && err.message ? err.message : err) }; afficher(); }
 }
@@ -193,24 +191,19 @@ racine.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixCampagne") { CAMP = D.campagnes.find(c => c.id === +el.value); MSG = null; return afficher(); }
   if (el.name === "mode") { MODE = el.value; return afficher(); }
-  if (el.id === "cStyle") { STYLE = el.value; racine.querySelectorAll(".apercu-page").forEach(x => { x.className = `apercu-page style-${STYLE}`; }); return; }
   if (el.id === "cImage" && el.files && el.files[0]) {
     const fic = el.files[0], lect = new FileReader();
-    lect.onload = () => { COUV = lect.result; COUV_NOM = fic.name; afficher(); };
+    if (fic.size > 4e6) { MSG = { cl: "err", txt: "PDF trop lourd (4 Mo maximum) : allégez-le (export « qualité écran »)." }; return afficher(); }
+    lect.onload = () => appliquer([["UpdateRecord", "Campagnes", CAMP.id, { Couverture: lect.result }]], `Page de garde déposée pour la campagne ${CAMP.Annee}.`);
     lect.readAsDataURL(fic);
   }
+
 });
 racine.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset;
   if (d.apercuPdf) return apercuPdf(+d.apercuPdf);
-  if (b.id === "cMemoriser") {
-    if (COUV.length > 6e6) { MSG = { cl: "err", txt: "Fichier trop lourd pour être mémorisé (4 Mo maximum) : utilisez-le pour cette génération seulement." }; return afficher(); }
-    const v = COUV; COUV = null; COUV_NOM = "";
-    return appliquer([["UpdateRecord", "Campagnes", CAMP.id, { Couverture: v }]], `Page de garde mémorisée pour la campagne ${CAMP.Annee}.`);
-  }
   if (b.id === "cOublier") return appliquer([["UpdateRecord", "Campagnes", CAMP.id, { Couverture: null }]], "La page de garde de la campagne n'est plus utilisée.");
-  if (b.id === "cSansImage") { COUV = null; COUV_NOM = ""; return afficher(); }
   if (b.id === "generer") { b.disabled = true; b.textContent = "Génération…"; return generer(); }
   if (b.id === "ajoutPage") {
     const ordre = Math.max(0, ...D.pages.map(p => p.Ordre || 0)) + 1;

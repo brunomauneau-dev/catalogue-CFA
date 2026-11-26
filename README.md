@@ -58,8 +58,9 @@ Pages d'information : table `Pages_catalogue` (Ordre, Titre, Texte, Afficher), m
 mise en forme : `**gras**`, `- ` liste, `## ` intertitre, `[texte](adresse)`.
 Colonne facultative `Presentation_accompagnement` dans `Fiches` (texte d'introduction de l'accompagnement).
 
-Habillages du PDF : « guide » (par défaut, une couleur par département et un onglet en bord de page),
-« fidèle au catalogue 2026 » ou « modernisé » ; image de couverture pleine page facultative.
+Habillage du PDF : « guide » (une couleur par département et un onglet en bord de page ; deux autres habillages
+restent disponibles dans `pdf-fiches.js`). Page de garde : un PDF A4 déposé dans l'onglet Catalogue, mémorisé pour
+la campagne (colonne `Campagnes.Couverture`) ; sans dépôt, une couverture simple est composée.
 
 ### Fiches fournies en PDF (GRETA)
 
