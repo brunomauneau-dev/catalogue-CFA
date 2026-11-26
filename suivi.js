@@ -189,7 +189,8 @@ function afficher() {
     <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
 }
 
-const ICONE_PDF = `<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6"/><path d="m9 15 3 3 3-3"/></svg>`;
+const ICONE_PDF = `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><path d="M6 2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E1000F"/><path d="M14.5 2v5.5H20" fill="#F7A5A9"/><text x="12" y="17.6" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="6.6" fill="#fff">PDF</text></svg>`;
+const BOUTON_PDF = (f, an) => `<button class="ico-pdf" data-pdf="${f.id}" title="Télécharger la fiche${an ? " " + an : ""} en PDF" aria-label="Télécharger la fiche${an ? " " + an : ""} en PDF">${ICONE_PDF}</button>`;
 
 // Export PDF d'une fiche (même mise en page que dans le catalogue)
 async function exporterPdf(f) {
@@ -225,7 +226,7 @@ function ligneClose(f, s) {
     : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const statut = recue(f) ? "Reçue" : `<span class="sous">non reçue</span>`;
   const actions = `<div class="boutons">${s ? `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>` : ""}
-    <button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche en PDF">${ICONE_PDF}PDF</button></div>`;
+    ${BOUTON_PDF(f)}</div>`;
   return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${chg}</td><td>${actions}</td></tr>`;
 }
 
@@ -234,7 +235,7 @@ function ligne(f, s, close) {
   const nom = `<button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span>`;
   const sel = VUE === f.id || (s && VUE === s.id) ? ' class="selection"' : "";
   if (!s) return `<tr${sel}><td>${nom}</td><td colspan="3"><span class="sous">pas de fiche dans la campagne en cours</span></td>
-    <td><div class="boutons"><button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche en PDF">${ICONE_PDF}PDF</button></div></td></tr>`;
+    <td><div class="boutons">${BOUTON_PDF(f)}</div></td></tr>`;
   const e = etape(s);
   const dateEtat = e === 2 ? (s.Soumise_le || s.Finalisee_le) : e === 1 ? s.Lien_envoye_le : null;
   const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}`;
@@ -253,7 +254,7 @@ function ligne(f, s, close) {
     if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
   }
   actions += `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>`;
-  actions = `<div class="boutons">${actions}</div><div class="boutons" style="margin-top:6px"><button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche ${esc(CAMP_DE(f))} en PDF">${ICONE_PDF}PDF</button></div>`;
+  actions = `<div class="boutons">${actions}${BOUTON_PDF(f, esc(CAMP_DE(f)))}</div>`;
   return `<tr${sel}><td>${nom}</td>
     <td>${etat}${s.Prochaine_action ? `<span class="sous">→ ${esc(s.Prochaine_action)}</span>` : ""}</td>
     <td>${nbCh}</td><td>${derTxt}</td><td>${actions}</td></tr>`;

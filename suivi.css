@@ -13,7 +13,7 @@ tr.detail>td{background:#FAFBFC;padding:14px}
 .etapes i.f{background:var(--bleu)}
 .etapes i.c{background:#D97706}
 .etiq{font-size:12px;font-weight:600;color:#364152}
-.boutons{display:flex;flex-wrap:wrap;gap:6px}
+.boutons{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .mini.prim{background:var(--bleu);border-color:var(--bleu);color:#fff}
 .retard{color:var(--rouge);font-weight:600}
 .grille-detail{display:flex;flex-wrap:wrap;gap:16px}
@@ -37,7 +37,8 @@ tr.selection td{background:var(--bleu-pale)}
 .puce-filtre{font:inherit;font-size:13px;font-weight:600;border:1px solid #CBD2DA;background:#fff;color:#364152;border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer}
 .puce-filtre[aria-pressed="true"]{background:var(--bleu);border-color:var(--bleu);color:#fff}
 .alerte-filtre{border-color:#FDA29B;color:var(--rouge)}
-.mini.pdf{color:var(--bleu);border-color:#B9CDEB;background:#F5F8FD}
+.ico-pdf{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;border:0;border-radius:6px;background:none;cursor:pointer;vertical-align:middle}
+.ico-pdf:hover{background:#FEECEC}.ico-pdf:focus-visible{outline:2px solid #000091;outline-offset:1px}
 .sous-onglets{display:flex;flex-wrap:wrap;gap:2px;border-bottom:2px solid var(--bord);margin-bottom:12px}
 .sous-onglets button{font:inherit;font-size:14px;font-weight:600;color:var(--doux);background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:8px 12px;min-height:40px;cursor:pointer}
 .sous-onglets button span{font-size:12px;font-weight:600;background:#EEF2F6;color:#364152;border-radius:999px;padding:1px 7px;margin-left:4px}
