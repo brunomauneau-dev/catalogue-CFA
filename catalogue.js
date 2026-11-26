@@ -63,6 +63,36 @@ function parDepartement(fiches) {
   return ordre.map(d => [d, g.get(d).sort((a, b) => String(a.Etablissement).localeCompare(b.Etablissement, "fr", { numeric: true }) || String(a.Site).localeCompare(b.Site, "fr", { numeric: true }))]);
 }
 
+// ---------- Aperçu d'une page d'information (même mise en forme que le PDF) ----------
+function enLigneHtml(t) {
+  return esc(t).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<span class="lien">$1</span>');
+}
+function apercuHtml(titre, texte) {
+  let html = `<div class="ap-titre">${esc(titre || "")}</div><div class="ap-filet"></div>`, liste = false;
+  for (const brut of String(texte || "").split(/\r?\n/)) {
+    const l = brut.trimEnd();
+    if (/^\s*[-*]\s+/.test(l)) { if (!liste) { html += "<ul>"; liste = true; } html += `<li>${enLigneHtml(l.replace(/^\s*[-*]\s+/, ""))}</li>`; continue; }
+    if (liste) { html += "</ul>"; liste = false; }
+    if (!l.trim()) { html += '<div class="ap-vide"></div>'; continue; }
+    if (/^##\s+/.test(l)) { html += `<div class="ap-inter">${enLigneHtml(l.replace(/^##\s+/, ""))}</div>`; continue; }
+    html += `<p>${enLigneHtml(l)}</p>`;
+  }
+  return html + (liste ? "</ul>" : "");
+}
+function majApercu(id) {
+  const v = c => { const el = racine.querySelector(`[data-p="${id}"][data-c="${c}"]`); return el ? el.value : ""; };
+  const box = racine.querySelector(`[data-apercu="${id}"]`); if (box) box.innerHTML = apercuHtml(v("Titre"), v("Texte"));
+}
+// PDF de la seule page d'information, avec le texte en cours de saisie (même s'il n'est pas encore enregistré)
+async function apercuPdf(id) {
+  try {
+    await chargerPdf();
+    const v = c => { const el = racine.querySelector(`[data-p="${id}"][data-c="${c}"]`); return el ? el.value : ""; };
+    const doc = genererPdf({ seulementPages: true, groupes: [], pages: [{ Titre: v("Titre"), Texte: v("Texte") }] }, D);
+    doc.save(`apercu-page-${id}.pdf`);
+  } catch (err) { MSG = { cl: "err", txt: "Aperçu impossible : " + (err && err.message ? err.message : err) }; afficher(); }
+}
+
 // ---------- Écran ----------
 function afficher() {
   const selCampagne = `<select id="choixCampagne" aria-label="Campagne" style="width:auto">${D.campagnes.map(c => `<option value="${c.id}"${CAMP && c.id === CAMP.id ? " selected" : ""}>Campagne ${esc(c.Annee)}${c.Active ? " (active)" : ""}</option>`).join("")}</select>`;
@@ -79,8 +109,11 @@ function afficher() {
         <div class="form-ech"><label class="champ">Titre<input data-p="${p.id}" data-c="Titre" value="${esc(p.Titre)}"></label>
           <label class="champ">Ordre<input type="number" data-p="${p.id}" data-c="Ordre" value="${esc(p.Ordre)}"></label></div>
         <label class="coche"><input type="checkbox" data-p="${p.id}" data-c="Afficher"${p.Afficher ? " checked" : ""}>Afficher dans le catalogue</label>
-        <label class="champ">Texte<textarea rows="10" data-p="${p.id}" data-c="Texte">${esc(p.Texte)}</textarea></label>
-        <div class="boutons"><button class="mini prim" data-enregistrer="${p.id}">Enregistrer cette page</button><button class="mini" data-supprimer="${p.id}">Supprimer</button></div>
+        <div class="edition-page">
+          <label class="champ">Texte<textarea rows="14" data-p="${p.id}" data-c="Texte">${esc(p.Texte)}</textarea></label>
+          <div class="champ">Aperçu (mise à jour pendant la saisie)<div class="apercu-page" data-apercu="${p.id}">${apercuHtml(p.Titre, p.Texte)}</div></div>
+        </div>
+        <div class="boutons"><button class="mini prim" data-enregistrer="${p.id}">Enregistrer cette page</button><button class="mini" data-apercu-pdf="${p.id}">Aperçu PDF exact</button><button class="mini" data-supprimer="${p.id}">Supprimer</button></div>
       </div></details>`).join("");
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
   app.innerHTML = `${enTeteIntegre}${bandeau}<div class="colonnes">
@@ -129,6 +162,7 @@ async function appliquer(actions, txt) {
   catch (err) { MSG = { cl: "err", txt: "Refusé : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 app.addEventListener("toggle", e => { const d = e.target; if (d.dataset && d.dataset.pli) d.open ? OUVERTES.add(+d.dataset.pli) : OUVERTES.delete(+d.dataset.pli); }, true);
+racine.addEventListener("input", e => { const el = e.target; if (el.dataset && el.dataset.p && (el.dataset.c === "Texte" || el.dataset.c === "Titre")) majApercu(el.dataset.p); });
 racine.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixCampagne") { CAMP = D.campagnes.find(c => c.id === +el.value); MSG = null; return afficher(); }
@@ -137,6 +171,7 @@ racine.addEventListener("change", e => {
 racine.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset;
+  if (d.apercuPdf) return apercuPdf(+d.apercuPdf);
   if (b.id === "generer") { b.disabled = true; b.textContent = "Génération…"; return generer(); }
   if (b.id === "ajoutPage") {
     const ordre = Math.max(0, ...D.pages.map(p => p.Ordre || 0)) + 1;

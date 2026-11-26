@@ -115,7 +115,8 @@ function genererPdf(opts, donnees) {
     return doc;
   }
 
-  // 1. Couverture (logo de l'académie sur une tuile blanche)
+  // 1. Couverture (logo de l'académie sur une tuile blanche) ; pas de couverture pour l'aperçu des pages d'information
+  if (!opts.seulementPages) {
   doc.setFillColor(...COUL.bleu); doc.rect(0, 0, A4.l, A4.h, "F");
   if (LOGO) { try { doc.setFillColor(255, 255, 255); doc.rect(A4.marge, 18, 52, 42, "F"); doc.addImage(LOGO, "PNG", A4.marge + 5, 22, 42, 42 * 147 / 198); } catch (e) { /* logo illisible : couverture sans logo */ } }
   doc.setFillColor(255, 255, 255); doc.rect(A4.marge, 150, 40, 1.2, "F");
@@ -123,6 +124,7 @@ function genererPdf(opts, donnees) {
   doc.text(doc.splitTextToSize(net(opts.titre), A4.l - 2 * A4.marge), A4.marge, 110, { baseline: "top" });
   police("normal", 16); doc.text(net(opts.sousTitre), A4.marge, 158, { baseline: "top" });
   police("normal", 11); doc.text(net(opts.bas), A4.marge, A4.h - 25, { baseline: "top" });
+  }
 
   // 2. Pages d'information
   for (const p of opts.pages) {
@@ -132,6 +134,13 @@ function genererPdf(opts, donnees) {
     texte(col, p.Titre || "", { taille: 20, style: "bold", c: COUL.bleu, apres: 2 });
     doc.setFillColor(...COUL.bleu); doc.rect(col.x, col.y, 25, 0.8, "F"); col.y += 7;
     riche(col, p.Texte);
+  }
+
+  if (opts.seulementPages) {
+    doc.deletePage(1);
+    const nb = doc.getNumberOfPages();
+    for (let i = 1; i <= nb; i++) { doc.setPage(i); police("normal", 8); coul([140, 150, 165]); doc.text(`aperçu ${i}/${nb}`, A4.l / 2, A4.h - 9, { align: "center", baseline: "top" }); }
+    return doc;
   }
 
   // 3. Sommaire (pages réservées, remplies à la fin quand les numéros sont connus)
