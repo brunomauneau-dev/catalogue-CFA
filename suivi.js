@@ -13,7 +13,7 @@ const JOUR = 86400;
 
 let D = { fiches: [], formations: [], contacts: [], accomp: [], corresp: [], campagnes: [] };
 let CAMP = null, FILTRE = { etape: "", dep: "", texte: "", retard: false }, OUVERTE = null, MSG = null;
-let VUE = null; // fiche affichée dans le formulaire lié
+let VUE = null, ONGLET = "encours", ARCH = null; // fiche affichée dans le formulaire lié ; onglet en cours / closes
 let PANNEAU = null; // "nouvelle" (préparer la campagne suivante) ou "activer" (confirmation)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -29,8 +29,7 @@ async function charger() {
   const lire = n => grist.docApi.fetchTable(n).then(lignes).catch(() => []);
   const [fi, fo, co, ac, cr, ca] = await Promise.all(["Fiches", "Formations", "Contacts", "Accompagnement", "Correspondances", "Campagnes"].map(lire));
   D = { fiches: fi, formations: fo, contacts: co, accomp: ac, corresp: cr, campagnes: ca };
-  if (!CAMP || !ca.find(c => c.id === CAMP.id)) CAMP = ca.find(c => c.Active) || ca[ca.length - 1] || null;
-  else CAMP = ca.find(c => c.id === CAMP.id);
+  choisirCampagne();
   afficher();
 }
 
@@ -48,9 +47,17 @@ function demo() {
     contacts: [{ id: 1, Fiche: 1, Pole: "Bâtiment", Nom: "Ancien contact" }, { id: 2, Fiche: 2, Pole: "Bâtiment", Nom: "Nouveau contact" }],
     accomp: [], corresp: [{ id: 1, Fiche: 3, Date: t - 5 * JOUR, Type: "Appel", Objet: "Question", Resume: "Échange fictif" }],
   };
-  CAMP = D.campagnes[1];
+  choisirCampagne();
   afficher();
 }
+
+function choisirCampagne() {
+  const closes = D.campagnes.filter(c => !c.Active).sort((a, b) => String(b.Annee).localeCompare(String(a.Annee)));
+  if (!ARCH || !closes.find(c => c.id === ARCH.id)) ARCH = closes[0] || null; else ARCH = closes.find(c => c.id === ARCH.id);
+  CAMP = ONGLET === "closes" ? ARCH : D.campagnes.find(c => c.Active) || null;
+}
+const CAMP_DE = f => (D.campagnes.find(c => c.id === f.Campagne) || {}).Annee || "";
+const suivante = f => D.fiches.find(x => x.Fiche_precedente === f.id && (D.campagnes.find(c => c.id === x.Campagne) || {}).Active);
 
 // ---------- Calculs ----------
 function etape(f) {
@@ -112,18 +119,27 @@ function enRetard(f) { // lien envoyé, pas soumise, rien depuis 7 jours
 // ---------- Affichage ----------
 function afficher() {
   const camp = CAMP;
-  document.getElementById("titre").textContent = camp ? `Suivi de la campagne ${camp.Annee}` : "Suivi des fiches";
-  document.getElementById("campagne").innerHTML = `<div class="boutons"><select id="choixCampagne" aria-label="Campagne" style="width:auto">${D.campagnes.map(c => `<option value="${c.id}"${camp && c.id === camp.id ? " selected" : ""}>Campagne ${esc(c.Annee)}${c.Active ? " (active)" : " (inactive)"}</option>`).join("")}</select>
-    ${camp && !camp.Active ? `<button class="mini prim" data-panneau="activer">Activer cette campagne</button>` : ""}
-    <button class="mini" data-panneau="nouvelle">Préparer une nouvelle campagne</button></div>`;
-  if (!camp) { app.innerHTML = `<p class="alerte">Aucune campagne. Ajoutez une ligne dans la table Campagnes.</p>`; return; }
+  const active = D.campagnes.find(c => c.Active), closes = D.campagnes.filter(c => !c.Active).sort((a, b) => String(b.Annee).localeCompare(String(a.Annee)));
+  document.getElementById("titre").textContent = ONGLET === "closes" ? "Campagnes closes" : active ? `Suivi de la campagne ${active.Annee}` : "Suivi des fiches";
+  document.getElementById("campagne").innerHTML = `<div class="boutons"><div class="onglets" role="tablist">
+      <button role="tab" data-onglet="encours" aria-selected="${ONGLET === "encours"}">Campagne en cours${active ? " " + esc(active.Annee) : ""}</button>
+      <button role="tab" data-onglet="closes" aria-selected="${ONGLET === "closes"}">Campagnes closes${closes.length ? " (" + closes.map(c => esc(c.Annee)).join(", ") + ")" : ""}</button></div>
+    ${ONGLET === "closes" && closes.length > 1 ? `<select id="choixArchive" aria-label="Campagne close" style="width:auto">${closes.map(c => `<option value="${c.id}"${ARCH && c.id === ARCH.id ? " selected" : ""}>${esc(c.Annee)}</option>`).join("")}</select>` : ""}
+    ${ONGLET === "encours" ? `<button class="mini" data-panneau="nouvelle">Préparer une nouvelle campagne</button>` : ""}</div>`;
+  if (!camp) {
+    app.innerHTML = ONGLET === "closes" ? `<p class="etat">Aucune campagne close.</p>`
+      : `<p class="alerte">Aucune campagne en cours.</p>${closes.map(c => `<button class="mini prim" data-activer="${c.id}">Activer la campagne ${esc(c.Annee)}</button> `).join("")}`;
+    return;
+  }
+  if (ONGLET === "closes") return afficherArchive(camp);
 
   const fiches = D.fiches.filter(f => f.Campagne === camp.id);
   const parEtape = [0, 1, 2, 3, 4, 5, 6].map(n => fiches.filter(f => etape(f) === n).length);
   const nbRetard = fiches.filter(enRetard).length;
   const compteur = (val, nb, lib) => `<button class="compteur" data-filtre-etape="${val}" aria-pressed="${FILTRE.etape === String(val)}"><b>${nb}</b><span>${lib}</span></button>`;
   const compteurs = `<div class="compteurs">${compteur("", fiches.length, "Toutes")}${compteur(0, parEtape[0], "À envoyer")}${compteur("1-2", parEtape[1] + parEtape[2], "Envoyées, en attente")}${compteur(3, parEtape[3], "Soumises, à traiter")}${compteur("4-5", parEtape[4] + parEtape[5], "Mise en forme / discussion")}${compteur(6, parEtape[6], "Finalisées")}
-    <button class="compteur" data-retard="1" aria-pressed="${FILTRE.retard}"><b class="${nbRetard ? "retard" : ""}">${nbRetard}</b><span>Sans réponse depuis 7 j</span></button></div>`;
+    <button class="compteur" data-retard="1" aria-pressed="${FILTRE.retard}"><b class="${nbRetard ? "retard" : ""}">${nbRetard}</b><span>Sans réponse depuis 7 j</span></button>
+    <button class="compteur" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}"><b>${fiches.filter(f => (changements(f) || []).length).length}</b><span>Avec changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</span></button></div>`;
 
   const deps = [...new Set(fiches.map(f => f.Departement || "Sans département"))].sort();
   const filtres = `<div class="filtres">
@@ -136,6 +152,7 @@ function afficher() {
     const e = etape(f);
     if (FILTRE.etape !== "") { const [a, b] = FILTRE.etape.split("-").map(Number); if (e < a || e > (b ?? a)) return false; }
     if (FILTRE.retard && !enRetard(f)) return false;
+    if (FILTRE.ch && !(changements(f) || []).length) return false;
     if (FILTRE.dep && (f.Departement || "Sans département") !== FILTRE.dep) return false;
     if (FILTRE.texte && !norm(f.Etablissement + " " + f.Site).includes(norm(FILTRE.texte))) return false;
     return true;
@@ -155,12 +172,40 @@ function afficher() {
     <tbody>${corps || `<tr><td colspan="6" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
 }
 
+function afficherArchive(camp) {
+  const active = D.campagnes.find(c => c.Active);
+  const fiches = D.fiches.filter(f => f.Campagne === camp.id && (!FILTRE.dep || (f.Departement || "Sans département") === FILTRE.dep) && (!FILTRE.texte || norm(f.Etablissement + " " + f.Site).includes(norm(FILTRE.texte))))
+    .sort((a, b) => String(a.Departement || "~").localeCompare(b.Departement || "~") || String(a.Etablissement).localeCompare(b.Etablissement));
+  const deps = [...new Set(D.fiches.filter(f => f.Campagne === camp.id).map(f => f.Departement || "Sans département"))].sort();
+  const nb = (t, f) => D[t].filter(r => r.Fiche === f.id && r.Statut !== "Fermée").length;
+  let corps = "", dc = null;
+  for (const f of fiches) {
+    const dep = f.Departement || "Sans département";
+    if (dep !== dc) { dc = dep; corps += `<tr class="dep"><td colspan="5">${esc(dep)} · ${fiches.filter(x => (x.Departement || "Sans département") === dep).length}</td></tr>`; }
+    const s = suivante(f), ch = s ? changements(s) : null;
+    const etat = !s ? `<span class="sous">pas de fiche ${active ? esc(active.Annee) : ""}</span>` : `${esc(libEtape(etape(s)))}`;
+    const chg = !s ? "—" : !ch.length ? `<span class="sous">aucun</span>` : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
+    corps += `<tr${VUE === f.id ? ' class="selection"' : ""}><td><button class="lien-fiche" data-voir="${f.id}" title="Consulter la fiche ${esc(camp.Annee)}">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></td>
+      <td>${nb("formations", f)} formation(s) · ${nb("contacts", f)} contact(s)</td><td>${etat}</td><td>${chg}</td>
+      <td>${s ? `<button class="mini" data-voir="${s.id}">Voir la fiche ${esc(active.Annee)}</button>` : ""}</td></tr>`;
+    if (s && OUVERTE === s.id) corps += `<tr class="detail"><td colspan="5">${detail(s, true)}</td></tr>`;
+  }
+  const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
+  app.innerHTML = `${bandeau}${panneau()}<p class="info">Campagne ${esc(camp.Annee)} close : consultation seule. Elle sert de base de comparaison${active ? " pour les fiches " + esc(active.Annee) : ""}.
+    <button class="mini" data-panneau="activer" style="margin-left:8px">Activer cette campagne…</button></p>
+    <div class="filtres"><select id="fDep" aria-label="Département"><option value="">Tous les départements</option>${deps.map(d => `<option${FILTRE.dep === d ? " selected" : ""}>${esc(d)}</option>`).join("")}</select>
+    <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}"></div>
+    <div class="boite"><table class="suivi"><thead><tr><th>Établissement · site (${esc(camp.Annee)})</th><th>Contenu ${esc(camp.Annee)}</th><th>Fiche ${active ? esc(active.Annee) : "en cours"}</th><th>Changements</th><th></th></tr></thead>
+    <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche.</td></tr>`}</tbody></table></div>`;
+}
+
 function ligne(f) {
   const e = etape(f);
   const dates = [f.Lien_envoye_le, f.Ouverte_le, f.Soumise_le, null, null, f.Finalisee_le];
   const barres = ETAPES.map((lib, i) => `<i class="${i < e ? "f" : i === e && e >= 3 && e < 6 ? "c" : ""}" title="${esc(lib)}${dates[i] ? " · " + dateFr(dates[i]) : ""}"></i>`).join("");
   const ch = changements(f);
-  const nbCh = ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : e < 3 ? `<span class="sous">—</span>` : `${ch.length} changement${ch.length > 1 ? "s" : ""}`;
+  const nbCh = ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
+    : `<button class="lien-fiche" data-ouvrir="${f.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const der = echanges(f)[0];
   const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : f.Soumise_le ? `Soumise · ${dateFr(f.Soumise_le)}` : f.Lien_envoye_le ? `Lien envoyé · ${dateFr(f.Lien_envoye_le)}` : "—";
   let actions = "";
@@ -174,15 +219,15 @@ function ligne(f) {
     <td>${nbCh}</td><td>${derTxt}</td><td>${esc(f.Prochaine_action || "")}</td><td><div class="boutons">${actions}</div></td></tr>`;
 }
 
-function detail(f) {
+function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison seule)
   const e = etape(f);
   const ch = changements(f);
   const diffs = ch === null ? `<p class="etat">Pas de fiche l'an dernier : rien à comparer.</p>`
-    : e < 3 ? `<p class="etat">La comparaison apparaîtra quand l'établissement aura soumis sa fiche.</p>`
     : ch.length ? ch.map(d => `<div class="diff"><span class="pill">${esc(d.type)}</span><span>${esc(d.lib)} :</span>${d.avant ? `<span class="avant">${esc(d.avant)}</span>` : ""}${d.avant && d.apres ? "→" : ""}${d.apres ? `<span class="apres">${esc(d.apres)}</span>` : ""}</div>`).join("")
     : `<p class="etat">Aucun changement par rapport à l'an dernier.</p>`;
   const ech = echanges(f).map(x => `<div class="ech"><b>${dateFr(x.Date)} · ${esc(x.Type)}</b> — ${esc(x.Objet || "")}<span class="sous">${esc(x.Resume || "")}</span></div>`).join("") || `<p class="etat">Aucun échange enregistré.</p>`;
   const etapeSaio = `<label class="champ">Étape SAIO<select data-etape-saio="${f.id}"><option value="">—</option>${["Mise en forme", "En discussion"].map(v => `<option${f.Etape_SAIO === v ? " selected" : ""}>${v}</option>`).join("")}</select></label>`;
+  if (lecture) return `<div class="grille-detail"><section><h2>Changements par rapport à l'an dernier</h2>${diffs}</section><section><h2>Correspondances ${esc(String(CAMP_DE(f)))}</h2>${ech}</section></div>`;
   return `<div class="grille-detail">
     <section><h2>Changements par rapport à l'an dernier</h2>${diffs}
       ${e >= 3 ? etapeSaio : ""}
@@ -287,7 +332,7 @@ async function creerCampagne() {
     }
     if (enfants.length) await grist.docApi.applyUserActions(enfants);
     PANNEAU = null;
-    MSG = { cl: "ok", txt: `Campagne ${annee} créée (inactive) : ${ids.length} fiche(s) reprises. Vérifiez-la, puis cliquez sur « Activer cette campagne ».` };
+    MSG = { cl: "ok", txt: `Campagne ${annee} créée (inactive) : ${ids.length} fiche(s) reprises. Elle apparaît dans l'onglet « Campagnes closes » ; pour la lancer, utilisez « Activer » (panneau de confirmation).` };
     CAMP = { id: campId };
     await charger();
   } catch (err) { MSG = { cl: "err", txt: "Création interrompue : " + (err && err.message ? err.message : err) }; afficher(); }
@@ -318,7 +363,7 @@ async function envoyer(f, relance) {
 // ---------- Interactions ----------
 document.addEventListener("change", e => {
   const el = e.target;
-  if (el.id === "choixCampagne") { CAMP = D.campagnes.find(c => c.id === +el.value); OUVERTE = null; MSG = null; return afficher(); }
+  if (el.id === "choixArchive") { ARCH = D.campagnes.find(c => c.id === +el.value); choisirCampagne(); OUVERTE = null; MSG = null; return afficher(); }
   if (el.id === "fDep") { FILTRE.dep = el.value; return afficher(); }
   if (el.dataset.etapeSaio) return appliquer([["UpdateRecord", "Fiches", +el.dataset.etapeSaio, { Etape_SAIO: el.value || null }]], "Étape mise à jour.");
   if (el.dataset.prochaine) return appliquer([["UpdateRecord", "Fiches", +el.dataset.prochaine, { Prochaine_action: el.value }]], "Prochaine action enregistrée.");
@@ -330,7 +375,9 @@ document.addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset, fiche = id => D.fiches.find(f => f.id === +id);
   if (d.filtreEtape !== undefined) { FILTRE.etape = FILTRE.etape === d.filtreEtape ? "" : d.filtreEtape; FILTRE.retard = false; return afficher(); }
-  if (d.retard) { FILTRE.retard = !FILTRE.retard; FILTRE.etape = ""; return afficher(); }
+  if (d.retard) { FILTRE.retard = !FILTRE.retard; FILTRE.etape = ""; FILTRE.ch = false; return afficher(); }
+  if (d.avecCh) { FILTRE.ch = !FILTRE.ch; FILTRE.etape = ""; FILTRE.retard = false; return afficher(); }
+  if (d.onglet) { ONGLET = d.onglet; choisirCampagne(); OUVERTE = null; VUE = null; MSG = null; PANNEAU = null; FILTRE.etape = ""; FILTRE.retard = false; FILTRE.ch = false; return afficher(); }
   if (d.voir) {
     VUE = +d.voir;
     if (DANS_GRIST) { try { await grist.setSelectedRows([VUE]); await grist.setCursorPos({ rowId: VUE }); } catch (err) { /* widget non relié */ } }

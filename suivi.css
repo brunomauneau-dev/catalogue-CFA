@@ -34,3 +34,7 @@ tr.detail>td{background:#FAFBFC;padding:14px}
 .lien-fiche{font:inherit;font-weight:700;color:var(--bleu);background:none;border:0;padding:0;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .lien-fiche:hover{color:var(--bleu-fonce)}
 tr.selection td{background:var(--bleu-pale)}
+.onglets{display:inline-flex;border:1px solid #CBD2DA;border-radius:8px;overflow:hidden}
+.onglets button{font:inherit;font-size:14px;font-weight:600;border:0;background:#fff;color:#364152;padding:9px 14px;min-height:40px;cursor:pointer}
+.onglets button+button{border-left:1px solid #CBD2DA}
+.onglets button[aria-selected="true"]{background:var(--bleu);color:#fff}
