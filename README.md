@@ -83,7 +83,7 @@ sans jamais afficher de valeur (seulement des comptes) :
 ## Habillage
 
 `theme.css` (chargé après les autres feuilles de style) : bloc-marque de l'académie (`img/logo-academie.png`),
-filet tricolore, bleu France, police Marianne (système de design de l'État, via jsDelivr ; repli Arial),
+fin dégradé bleu-lavande-menthe, bleu France, police Marianne (système de design de l'État, via jsDelivr ; repli Arial),
 étapes en couleur (vert : faite, orange : en cours). Le logo figure aussi sur la couverture du catalogue PDF.
 
 ## Données
