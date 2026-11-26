@@ -63,10 +63,10 @@ la campagne (colonne `Campagnes.Couverture`) ; sans dépôt, une couverture simp
 
 ### Fiches fournies en PDF (GRETA)
 
-Les établissements de la rubrique « Autre (Greta) » transmettent leur fiche en PDF : le SAIO la dépose dans la colonne
-`Document_fourni` (pièce jointe) de la table `Fiches`. Le catalogue et l'export d'une fiche l'insèrent tels quels
-(bibliothèque `lib/pdf-lib.min.js`, licence MIT), à la place de la fiche générée. Dans le suivi : « PDF fourni »,
-« PDF reçu » (passe la fiche à l'étape « Soumise ») et mail demandant le PDF à jour au lieu du lien du formulaire.
+Les établissements de la rubrique « Autre (Greta) » transmettent leur fiche en PDF. Dans le suivi, « Déposer le PDF reçu »
+l'enregistre dans la fiche (colonne `PDF_depose`, créée au premier dépôt) et la passe à l'état « Reçue ». Le catalogue et
+l'export d'une fiche l'insèrent tel quel (bibliothèque `lib/pdf-lib.min.js`, licence MIT) ; à défaut, la pièce jointe
+`Document_fourni` (PDF de l'an dernier) est utilisée. « Envoyer » prépare un mail demandant le PDF à jour.
 
 ## Référentiel des intitulés
 

@@ -204,6 +204,18 @@ async function exporterPdf(f) {
   } catch (err) { MSG = { cl: "err", txt: "Export PDF impossible : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 
+// Dépôt du PDF reçu d'un GRETA : enregistré dans la fiche (colonne PDF_depose, créée au besoin), fiche « reçue »
+async function deposerPdf(id, fic) {
+  if (fic.size > 4e6) { MSG = { cl: "err", txt: "PDF trop lourd (4 Mo maximum) : demandez une version allégée." }; return afficher(); }
+  const data = await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(fic); });
+  const f = D.fiches.find(x => x.id === id);
+  if (!DANS_GRIST) { Object.assign(f, { PDF_depose: data, Soumise_le: maintenant() }); MSG = { cl: "ok", txt: `Démonstration : PDF de ${f.Etablissement} déposé.` }; return afficher(); }
+  const a = [];
+  if (!("PDF_depose" in f)) a.push(["AddColumn", "Fiches", "PDF_depose", { type: "Any", isFormula: false, label: "PDF_depose" }]);
+  a.push(["UpdateRecord", "Fiches", id, { PDF_depose: data, Soumise_le: maintenant() }]);
+  await appliquer(a, `PDF de ${f.Etablissement} déposé : la fiche est reçue.`);
+}
+
 // f : fiche affichée (nom cliquable) ; s : fiche de la campagne en cours (étape, changements, actions) ; close : onglet des campagnes closes
 function ligneClose(f, s) {
   const nom = `<button class="lien-fiche" data-voir="${f.id}" title="Consulter la fiche (lecture seule)">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span>`;
@@ -227,16 +239,17 @@ function ligne(f, s, close) {
   const dateEtat = e === 2 ? (s.Soumise_le || s.Finalisee_le) : e === 1 ? s.Lien_envoye_le : null;
   const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}`;
   const ch = changements(s);
-  const pdfFourni = horsDep(nomDep(s)), aPdf = idsPieces(s.Document_fourni).length > 0;
-  const nbCh = pdfFourni ? (aPdf ? `<span class="pill p-ok">PDF fourni</span>` : `<span class="pill">PDF à recevoir</span>`)
+  // GRETA : la fiche est un PDF ; « reçue » = PDF de l'année déposé (bouton « Déposer le PDF »)
+  const pdfFourni = horsDep(nomDep(s));
+  const nbCh = pdfFourni ? (e === 2 ? `<span class="pill p-ok">PDF ${esc(CAMP_DE(s))} déposé</span>` : `<span class="sous">PDF de l'an dernier</span>`)
     : ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
     : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const der = echanges(s)[0];
   const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Reçue · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "—";
   let actions = "";
   if (!close) {
-    if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Envoyer</button>`;
-    if (pdfFourni && aPdf && e < 2) actions += `<button class="mini prim" data-pdf-recu="${s.id}" title="Le PDF à jour est déposé dans la colonne Document_fourni">PDF reçu</button>`;
+    if (e === 0) actions += `<button class="mini${pdfFourni ? "" : " prim"}" data-envoyer="${s.id}">Envoyer</button>`;
+    if (pdfFourni) actions += `<label class="mini${e === 2 ? "" : " prim"} depot-pdf" title="PDF reçu de l'établissement">${e === 2 ? "Remplacer le PDF" : "Déposer le PDF reçu"}<input type="file" accept="application/pdf" data-depot-pdf="${s.id}" hidden></label>`;
     if (e === 1) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
   }
   actions += `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>`;
@@ -391,6 +404,7 @@ async function envoyer(f, relance) {
 // ---------- Interactions ----------
 document.addEventListener("change", e => {
   const el = e.target;
+  if (el.dataset.depotPdf && el.files && el.files[0]) return deposerPdf(+el.dataset.depotPdf, el.files[0]);
   if (el.id === "choixArchive") { ARCH = D.campagnes.find(c => c.id === +el.value); choisirCampagne(); OUVERTE = null; MSG = null; return afficher(); }
   if (el.id === "fEtape") { FILTRE.etape = el.value; return afficher(); }
   if (el.dataset.prochaine) return appliquer([["UpdateRecord", "Fiches", +el.dataset.prochaine, { Prochaine_action: el.value }]], "Prochaine action enregistrée.");
@@ -412,7 +426,6 @@ document.addEventListener("click", async e => {
   if (d.fermerQuandMeme !== undefined) return fermerTiroir(true);
   if (d.resterTiroir !== undefined) { document.getElementById("tAlerte").innerHTML = ""; return; }
   if (d.pdf) return exporterPdf(fiche(d.pdf));
-  if (d.pdfRecu) return appliquer([["UpdateRecord", "Fiches", +d.pdfRecu, { Soumise_le: maintenant() }]], "PDF reçu : la fiche passe à l'étape « Soumise ».");
   if (d.ouvrir) { OUVERTE = OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; return afficher(); }
   if (d.envoyer) return envoyer(fiche(d.envoyer), false);
   if (d.relancer) return envoyer(fiche(d.relancer), true);

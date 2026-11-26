@@ -34,16 +34,24 @@ function chargerPdfLib() {
 }
 const idsPieces = v => (Array.isArray(v) ? v.filter(x => typeof x === "number") : typeof v === "number" ? [v] : []);
 // fiches -> Map(id de fiche -> { octets, nb }) ; ignore ce qui n'est pas un PDF lisible
+// PDF déposé depuis le suivi (colonne PDF_depose, texte « data: ») prioritaire sur la pièce jointe Document_fourni
+const pdfDepose = f => (typeof f.PDF_depose === "string" && f.PDF_depose.startsWith("data:application/pdf") ? f.PDF_depose : null);
+const dataVersOctets = d => { const bin = atob(d.split(",")[1]), o = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i); return o.buffer; };
 async function chargerDocuments(fiches) {
-  const docs = new Map(), avec = fiches.filter(f => idsPieces(f.Document_fourni).length);
-  if (!avec.length || typeof grist === "undefined" || window.parent === window) return docs;
+  const docs = new Map(), avec = fiches.filter(f => pdfDepose(f) || idsPieces(f.Document_fourni).length);
+  if (!avec.length) return docs;
   await chargerPdfLib();
-  const { token, baseUrl } = await grist.docApi.getAccessToken({ readOnly: true });
+  let acces = null;
   for (const f of avec) {
     try {
-      const id = idsPieces(f.Document_fourni)[0];
-      const rep = await fetch(`${baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(token)}`);
-      const octets = await rep.arrayBuffer();
+      let octets;
+      if (pdfDepose(f)) octets = dataVersOctets(pdfDepose(f));
+      else {
+        if (typeof grist === "undefined" || window.parent === window) continue;
+        acces = acces || await grist.docApi.getAccessToken({ readOnly: true });
+        const rep = await fetch(`${acces.baseUrl}/attachments/${idsPieces(f.Document_fourni)[0]}/download?auth=${encodeURIComponent(acces.token)}`);
+        octets = await rep.arrayBuffer();
+      }
       const pdf = await window.PDFLib.PDFDocument.load(octets, { ignoreEncryption: true });
       docs.set(f.id, { octets, nb: pdf.getPageCount() });
     } catch (e) { /* pièce jointe illisible : la fiche saisie est utilisée */ }

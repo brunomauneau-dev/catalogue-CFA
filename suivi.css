@@ -90,3 +90,4 @@ tr.dep td{padding:0}
 .etat-fiche.e2{background:#DCFAE6;color:#05603A}
 .etat-fiche.retard{background:#FEE4E2;color:#912018}
 .sous.retard{color:var(--rouge)}
+.depot-pdf{display:inline-flex;align-items:center;cursor:pointer}
