@@ -189,7 +189,7 @@ function afficher() {
     <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
 }
 
-const ICONE_PDF = `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><path d="M6 2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#E1000F"/><path d="M14.5 2v5.5H20" fill="#F7A5A9"/><text x="12" y="17.6" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="6.6" fill="#fff">PDF</text></svg>`;
+const ICONE_PDF = `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24"><path d="M6 2h8.5L20 7.5V20a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#EB4A50"/><path d="M14.5 2v5.5H20" fill="#F9C2C4"/><text x="12" y="17.6" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="6.6" fill="#fff">PDF</text></svg>`;
 const BOUTON_PDF = (f, an) => `<button class="ico-pdf" data-pdf="${f.id}" title="Télécharger la fiche${an ? " " + an : ""} en PDF" aria-label="Télécharger la fiche${an ? " " + an : ""} en PDF">${ICONE_PDF}</button>`;
 
 // GRETA : le PDF de communication fourni par l'établissement, tel quel (jamais remis en page ni retouché)
