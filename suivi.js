@@ -192,7 +192,7 @@ function afficher() {
     }
     if (!FILTRE.dep && REPLIES.has(dep)) continue;
     corps += ligne(l.f, l.s, close);
-    if (l.s && OUVERTE === l.s.id) corps += `<tr class="detail"><td colspan="${close ? 4 : 5}">${detail(l.s, close)}</td></tr>`;
+    if (l.s && OUVERTE === l.s.id) corps += `<tr class="detail"><td colspan="${close ? 4 : 5}">${detail(close ? l.f : l.s, close)}</td></tr>`;
   }
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
   const contexte = close ? `Campagne ${esc(camp.Annee)} close, en consultation : les fiches telles que publiées en ${esc(camp.Annee)}. La comparaison avec ${esc(anCours)} se trouve dans l'onglet de la campagne en cours.` : "";

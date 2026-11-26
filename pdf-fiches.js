@@ -53,7 +53,8 @@ async function chargerDocuments(fiches) {
         // plusieurs pièces jointes (ex. fiche sur deux pages) : assemblées dans l'ordre, pages copiées sans retouche
         const parts = [];
         for (const id of idsPieces(f.Document_fourni)) {
-          const rep = await fetch(`${acces.baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(acces.token)}`);
+          // document avec règles d'accès : Grist exige la cellule qui porte la pièce jointe
+          const rep = await fetch(`${acces.baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(acces.token)}&tableId=Fiches&colId=Document_fourni&rowId=${f.id}`);
           if (!rep.ok) throw new Error(`pièce jointe refusée par Grist (HTTP ${rep.status})`);
           parts.push(await rep.arrayBuffer());
         }
