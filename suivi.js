@@ -154,10 +154,10 @@ function afficher() {
     <button role="tab" data-dep="" aria-selected="${!FILTRE.dep}">Toutes les fiches <span>${lignes.length}</span></button>
     ${deps.map(d => `<button role="tab" data-dep="${esc(d)}" aria-selected="${FILTRE.dep === d}">${esc(d)} <span>${nbDep(d)}</span></button>`).join("")}</div>`;
   const filtres = `<div class="filtres">
-    <select id="fEtape" aria-label="Étape">${ETATS.map(([v, lib]) => `<option value="${v}"${FILTRE.etape === v ? " selected" : ""}>${lib} (${v === "" ? dansDep().length : n(v)})</option>`).join("")}</select>
+    ${close ? "" : `<select id="fEtape" aria-label="Étape">${ETATS.map(([v, lib]) => `<option value="${v}"${FILTRE.etape === v ? " selected" : ""}>${lib} (${v === "" ? dansDep().length : n(v)})</option>`).join("")}</select>`}
     <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
     <button class="puce-filtre" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}">Avec changements · ${nbChg()}</button>
-    <button class="puce-filtre${nbRetard() ? " alerte-filtre" : ""}" data-retard="1" aria-pressed="${FILTRE.retard}">Sans réponse depuis 7 j · ${nbRetard()}</button></div>`;
+    ${close ? "" : `<button class="puce-filtre${nbRetard() ? " alerte-filtre" : ""}" data-retard="1" aria-pressed="${FILTRE.retard}">Sans réponse depuis 7 j · ${nbRetard()}</button>`}</div>`;
   const garde = l => {
     const e = et(l);
     if (FILTRE.etape !== "") { const [a, b] = FILTRE.etape.split("-").map(Number); if (e < a || e > (b ?? a)) return false; }
@@ -179,7 +179,8 @@ function afficher() {
   const contexte = close ? `Campagne ${esc(camp.Annee)} close, en consultation seule : chaque fiche est comparée à sa fiche ${esc(anCours)}.`
     : camp.Date_limite ? `Date limite de retour : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}.` : "";
   app.innerHTML = `${bandeau}${panneau()}${contexte ? `<p class="contexte">${contexte}</p>` : ""}${sousOnglets}${filtres}<div class="boite"><table class="suivi">
-    <thead><tr><th>Établissement · site${close ? " (" + esc(camp.Annee) + ")" : ""}</th><th>Étape ${esc(anCours)}</th><th>Changements depuis ${esc(close ? camp.Annee : String((parseInt(camp.Annee, 10) || 1) - 1))}</th><th>Dernier échange</th><th>Actions</th></tr></thead>
+    <thead>${close ? `<tr><th>Établissement · site</th><th>Contenu ${esc(camp.Annee)}</th><th>Statut ${esc(camp.Annee)}</th><th>Changements en ${esc(anCours)}</th><th>Actions</th></tr>`
+      : `<tr><th>Établissement · site</th><th>Étape ${esc(anCours)}</th><th>Changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</th><th>Dernier échange</th><th>Actions</th></tr>`}</thead>
     <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
 }
 
@@ -197,7 +198,20 @@ async function exporterPdf(f) {
 }
 
 // f : fiche affichée (nom cliquable) ; s : fiche de la campagne en cours (étape, changements, actions) ; close : onglet des campagnes closes
+function ligneClose(f, s) {
+  const nom = `<button class="lien-fiche" data-voir="${f.id}" title="Consulter la fiche (lecture seule)">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span>`;
+  const nb = t => D[t].filter(r => r.Fiche === f.id && r.Statut !== "Fermée").length;
+  const ch = s ? changements(s) : null;
+  const chg = !s ? `<span class="sous">pas de fiche en cours</span>` : !ch.length ? `<span class="sous">aucun</span>`
+    : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
+  const statut = f.Finalisee_le ? `Finalisée le ${esc(new Date(f.Finalisee_le * 1000).toLocaleDateString("fr-FR"))}` : `<span class="sous">non finalisée</span>`;
+  const actions = `<div class="boutons">${s ? `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>` : ""}
+    <button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche en PDF">${ICONE_PDF}PDF</button></div>`;
+  return `<tr${VUE === f.id ? ' class="selection"' : ""}><td>${nom}</td><td>${nb("formations")} formation(s) · ${nb("contacts")} contact(s)</td><td>${statut}</td><td>${chg}</td><td>${actions}</td></tr>`;
+}
+
 function ligne(f, s, close) {
+  if (close) return ligneClose(f, s);
   const nom = `<button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span>`;
   const sel = VUE === f.id || (s && VUE === s.id) ? ' class="selection"' : "";
   if (!s) return `<tr${sel}><td>${nom}</td><td colspan="3"><span class="sous">pas de fiche dans la campagne en cours</span></td>
