@@ -10,7 +10,17 @@ TITRE_FORM = re.compile(r"^\W*(FORMATIONS?\s+PROPOS|FILI[ÈE]RES?\s+DE\s+FORMATI
 TITRE_MOD = re.compile(r"^\W*MODALIT", re.I)
 MAIL = re.compile(r"[\w.+'-]+@[\w-]+(\.[\w-]+)+")
 TEL = re.compile(r"(\+33\s?|\b0)[1-9]([\s.\-]?\d{2}){4}")
-CP = re.compile(r"\b(\d{5})\b\s*(.*)")
+CP = re.compile(r"(?<![\w])(\d{2}\s?\d{3})(?![\d])")
+BOITE = re.compile(r"\b(CS|BP|TSA|C\.S\.|B\.P\.)\s*$", re.I)
+
+def code_postal(t):
+    """(adresse avant, code postal, ville) ou None ; ignore les numéros de boîte postale."""
+    for m in reversed(list(CP.finditer(t))):
+        if BOITE.search(t[:m.start()]): continue
+        ville = t[m.end():].strip(" ,-–")
+        if ville and not re.match(r"[A-Za-zÀ-ÿ]", ville): continue
+        return t[:m.start()].strip(" ,-–"), m.group(1).replace(" ", ""), ville
+    return None
 WEB = re.compile(r"(https?://\S+|www\.\S+)", re.I)
 DIPL = re.compile(r"^(CAP\s*A\b|CAPA\b|CAP\b|C\.A\.P\.?|BAC\s*PRO|Bac\s*Pro(fessionnel)?|Baccalaur[ée]at\s+professionnel|BPA?\b|BTSA?\b|BTM\b|BM\b|MC\b|Mention\s+compl|CS\b|Certificat\s+de\s+sp|Titre\s+pro|TP\b|CQP\b|Brevet)", re.I)
 PUCES = "•▪●◦‣∙·➢➤►▶■□-–—*o"
@@ -35,6 +45,11 @@ def frontiere(pg, yh):
             if cur > best[0]: best = (cur, deb + cur // 2)
         else: cur = 0
     return best[1] if best[0] >= 4 else None
+
+def colonne(pg, x0, x1, y0, y1):
+    # garde les caractères dont le centre est dans [x0, x1[, puis limite la hauteur
+    z = pg.filter(lambda o: o.get("object_type") != "char" or x0 <= (o["x0"] + o["x1"]) / 2 < x1)
+    return z.crop((0, y0, pg.width, y1))
 
 def lignes(zone):
     out = []
@@ -64,9 +79,9 @@ def lire_page(pg, n):
     grands = [l for l in ent if l["taille"] >= 15]
     fiche["Etablissement"] = " ".join(l["t"] for l in grands)
     xb = frontiere(pg, yh) or 230
-    zones = lignes(pg.crop((0, yh, xb, 780))) + lignes(pg.crop((xb, yh, pg.width, 780)))
+    zones = lignes(colonne(pg, 0, xb, yh, 780)) + lignes(colonne(pg, xb, pg.width + 1, yh, 780))
     if len("".join(l["t"] for l in zones)) < 120: fiche["image"] = True
-    etat, groupe, fil = "admin", "", ""
+    etat, groupe, fil, attente = "admin", "", "", ""
     contact = None
     for l in zones:
         t = l["t"]
@@ -82,12 +97,16 @@ def lire_page(pg, n):
         elif TITRE_MOD.match(t):
             etat = "modalites"; continue
         if etat == "admin":
+            # lettres isolées (texte décoratif ou débordement de l'autre colonne) : ignorées
+            if len(re.sub(r"[^A-Za-zÀ-ÿ0-9]", "", t)) <= 2: continue
+            # adresse mail coupée en fin de ligne : on la recolle avec la ligne suivante
+            if attente: t = attente + t; attente = ""
+            if "@" in t and not MAIL.search(t): attente = t; continue
             if MAIL.search(t) and not fiche["Mail"]: fiche["Mail"] = MAIL.search(t).group(0)
             elif TEL.search(t) and not fiche["Telephone"]: fiche["Telephone"] = TEL.search(t).group(0)
             elif WEB.search(t) and not fiche["Site_internet"]: fiche["Site_internet"] = WEB.search(t).group(0)
-            elif CP.search(t) and not fiche["Code_postal"] and len(t) < 60:
-                m = CP.search(t); fiche["Code_postal"] = m.group(1); fiche["Ville"] = m.group(2).strip(" ,-")
-                avant = t[:m.start()].strip(" ,-")
+            elif not fiche["Code_postal"] and len(t) < 70 and code_postal(t):
+                avant, fiche["Code_postal"], fiche["Ville"] = code_postal(t)
                 if avant: fiche["Adresse"].append(avant)
             elif (l["gras"] or l["taille"] >= 12) and not fiche["Adresse"]: pass  # rappel du nom de l'établissement
             elif TEL.search(t) or MAIL.search(t): fiche["non_classees"] += 1
