@@ -135,91 +135,87 @@ function afficher() {
       : `<p class="alerte">Aucune campagne en cours.</p>${closes.map(c => `<button class="mini prim" data-activer="${c.id}">Activer la campagne ${esc(c.Annee)}</button> `).join("")}`;
     return;
   }
-  if (ONGLET === "closes") return afficherArchive(camp);
-
-  const fiches = D.fiches.filter(f => f.Campagne === camp.id);
-  const parEtape = [0, 1, 2, 3, 4, 5].map(n => fiches.filter(f => etape(f) === n).length);
-  const nbRetard = fiches.filter(enRetard).length;
-  const compteur = (val, nb, lib) => `<button class="compteur" data-filtre-etape="${val}" aria-pressed="${FILTRE.etape === String(val)}"><b>${nb}</b><span>${lib}</span></button>`;
-  const compteurs = `<div class="compteurs">${compteur("", fiches.length, "Toutes")}${compteur(0, parEtape[0], "À envoyer")}${compteur("1-2", parEtape[1] + parEtape[2], "Envoyées, en attente")}${compteur(3, parEtape[3], "Soumises, à vérifier")}${compteur(4, parEtape[4], "En discussion")}${compteur(5, parEtape[5], "Finalisées")}
-    <button class="compteur" data-retard="1" aria-pressed="${FILTRE.retard}"><b class="${nbRetard ? "retard" : ""}">${nbRetard}</b><span>Sans réponse depuis 7 j</span></button>
-    <button class="compteur" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}"><b>${fiches.filter(f => (changements(f) || []).length).length}</b><span>Avec changements depuis ${esc(String((parseInt(camp.Annee, 10) || 1) - 1))}</span></button></div>`;
-
-  const deps = [...new Set(fiches.map(f => f.Departement || "Sans département"))].sort();
+  // Les deux onglets ont la même présentation. Onglet « closes » : une ligne par fiche de la campagne close,
+  // avec l'étape, les changements et les échanges de sa fiche dans la campagne en cours.
+  const close = ONGLET === "closes";
+  const anCours = active ? String(active.Annee) : "en cours";
+  const lignes = D.fiches.filter(f => f.Campagne === camp.id).map(f => ({ f, s: close ? suivante(f) : f }));
+  const et = l => (l.s ? etape(l.s) : -1), chg = l => (l.s ? (changements(l.s) || []).length : 0);
+  const n = v => lignes.filter(l => { const e = et(l); const [a, b] = v.split("-").map(Number); return e >= a && e <= (b ?? a); }).length;
+  const ETATS = [["", "Toutes les étapes"], ["0", "À envoyer"], ["1-2", "Envoyées, en attente"], ["3", "Soumises, à vérifier"], ["4", "En discussion"], ["5", "Finalisées"]];
+  const nbRetard = lignes.filter(l => l.s && enRetard(l.s)).length, nbCh = lignes.filter(l => chg(l)).length;
+  const deps = [...new Set(lignes.map(l => l.f.Departement || "Sans département"))].sort();
   const filtres = `<div class="filtres">
+    <select id="fEtape" aria-label="Étape">${ETATS.map(([v, lib]) => `<option value="${v}"${FILTRE.etape === v ? " selected" : ""}>${lib} (${v === "" ? lignes.length : n(v)})</option>`).join("")}</select>
     <select id="fDep" aria-label="Département"><option value="">Tous les départements</option>${deps.map(d => `<option${FILTRE.dep === d ? " selected" : ""}>${esc(d)}</option>`).join("")}</select>
     <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
-    ${camp.Date_limite ? `<span class="etat">Date limite : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}</span>` : ""}</div>`;
-
-  const garde = f => {
-    const e = etape(f);
+    <button class="puce-filtre" data-avec-ch="1" aria-pressed="${!!FILTRE.ch}">Avec changements · ${nbCh}</button>
+    <button class="puce-filtre${nbRetard ? " alerte-filtre" : ""}" data-retard="1" aria-pressed="${FILTRE.retard}">Sans réponse depuis 7 j · ${nbRetard}</button></div>`;
+  const garde = l => {
+    const e = et(l);
     if (FILTRE.etape !== "") { const [a, b] = FILTRE.etape.split("-").map(Number); if (e < a || e > (b ?? a)) return false; }
-    if (FILTRE.retard && !enRetard(f)) return false;
-    if (FILTRE.ch && !(changements(f) || []).length) return false;
-    if (FILTRE.dep && (f.Departement || "Sans département") !== FILTRE.dep) return false;
-    if (FILTRE.texte && !norm(f.Etablissement + " " + f.Site).includes(norm(FILTRE.texte))) return false;
+    if (FILTRE.retard && !(l.s && enRetard(l.s))) return false;
+    if (FILTRE.ch && !chg(l)) return false;
+    if (FILTRE.dep && (l.f.Departement || "Sans département") !== FILTRE.dep) return false;
+    if (FILTRE.texte && !norm(l.f.Etablissement + " " + l.f.Site).includes(norm(FILTRE.texte))) return false;
     return true;
   };
-  const vis = fiches.filter(garde).sort((a, b) => String(a.Departement || "~").localeCompare(b.Departement || "~") || String(a.Etablissement).localeCompare(b.Etablissement));
-
+  const vis = lignes.filter(garde).sort((a, b) => String(a.f.Departement || "~").localeCompare(b.f.Departement || "~") || String(a.f.Etablissement).localeCompare(b.f.Etablissement, "fr", { numeric: true }));
   let corps = "", depCourant = null;
-  for (const f of vis) {
-    const dep = f.Departement || "Sans département";
-    if (dep !== depCourant) { depCourant = dep; corps += `<tr class="dep"><td colspan="6">${esc(dep)} · ${vis.filter(x => (x.Departement || "Sans département") === dep).length}</td></tr>`; }
-    corps += ligne(f);
-    if (OUVERTE === f.id) corps += `<tr class="detail"><td colspan="6">${detail(f)}</td></tr>`;
+  for (const l of vis) {
+    const dep = l.f.Departement || "Sans département";
+    if (dep !== depCourant) { depCourant = dep; corps += `<tr class="dep"><td colspan="5">${esc(dep)} · ${vis.filter(x => (x.f.Departement || "Sans département") === dep).length}</td></tr>`; }
+    corps += ligne(l.f, l.s, close);
+    if (l.s && OUVERTE === l.s.id) corps += `<tr class="detail"><td colspan="5">${detail(l.s, close)}</td></tr>`;
   }
   const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
-  app.innerHTML = `${bandeau}${panneau()}${compteurs}${filtres}<div class="boite"><table class="suivi">
-    <thead><tr><th>Établissement · site</th><th>Étape</th><th>Changements</th><th>Dernier échange</th><th>Prochaine action</th><th>Actions</th></tr></thead>
-    <tbody>${corps || `<tr><td colspan="6" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
+  const contexte = close ? `Campagne ${esc(camp.Annee)} close, en consultation seule : chaque fiche est comparée à sa fiche ${esc(anCours)}.`
+    : camp.Date_limite ? `Date limite de retour : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}.` : "";
+  app.innerHTML = `${bandeau}${panneau()}${contexte ? `<p class="contexte">${contexte}</p>` : ""}${filtres}<div class="boite"><table class="suivi">
+    <thead><tr><th>Établissement · site${close ? " (" + esc(camp.Annee) + ")" : ""}</th><th>Étape ${esc(anCours)}</th><th>Changements depuis ${esc(close ? camp.Annee : String((parseInt(camp.Annee, 10) || 1) - 1))}</th><th>Dernier échange</th><th>Actions</th></tr></thead>
+    <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche pour ces filtres.</td></tr>`}</tbody></table></div>`;
 }
 
-function afficherArchive(camp) {
-  const active = D.campagnes.find(c => c.Active);
-  const fiches = D.fiches.filter(f => f.Campagne === camp.id && (!FILTRE.dep || (f.Departement || "Sans département") === FILTRE.dep) && (!FILTRE.texte || norm(f.Etablissement + " " + f.Site).includes(norm(FILTRE.texte))))
-    .sort((a, b) => String(a.Departement || "~").localeCompare(b.Departement || "~") || String(a.Etablissement).localeCompare(b.Etablissement));
-  const deps = [...new Set(D.fiches.filter(f => f.Campagne === camp.id).map(f => f.Departement || "Sans département"))].sort();
-  const nb = (t, f) => D[t].filter(r => r.Fiche === f.id && r.Statut !== "Fermée").length;
-  let corps = "", dc = null;
-  for (const f of fiches) {
-    const dep = f.Departement || "Sans département";
-    if (dep !== dc) { dc = dep; corps += `<tr class="dep"><td colspan="5">${esc(dep)} · ${fiches.filter(x => (x.Departement || "Sans département") === dep).length}</td></tr>`; }
-    const s = suivante(f), ch = s ? changements(s) : null;
-    const etat = !s ? `<span class="sous">pas de fiche ${active ? esc(active.Annee) : ""}</span>` : `${esc(libEtape(etape(s)))}`;
-    const chg = !s ? "—" : !ch.length ? `<span class="sous">aucun</span>` : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
-    corps += `<tr${VUE === f.id ? ' class="selection"' : ""}><td><button class="lien-fiche" data-voir="${f.id}" title="Consulter la fiche ${esc(camp.Annee)}">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></td>
-      <td>${nb("formations", f)} formation(s) · ${nb("contacts", f)} contact(s)</td><td>${etat}</td><td>${chg}</td>
-      <td>${s ? `<button class="mini" data-voir="${s.id}">Voir la fiche ${esc(active.Annee)}</button>` : ""}</td></tr>`;
-    if (s && OUVERTE === s.id) corps += `<tr class="detail"><td colspan="5">${detail(s, true)}</td></tr>`;
-  }
-  const bandeau = MSG ? `<div class="bandeau ${MSG.cl}" role="status" style="margin-bottom:12px">${esc(MSG.txt)}</div>` : "";
-  app.innerHTML = `${bandeau}${panneau()}<p class="info">Campagne ${esc(camp.Annee)} close : consultation seule. Elle sert de base de comparaison${active ? " pour les fiches " + esc(active.Annee) : ""}.
-</p>
-    <div class="filtres"><select id="fDep" aria-label="Département"><option value="">Tous les départements</option>${deps.map(d => `<option${FILTRE.dep === d ? " selected" : ""}>${esc(d)}</option>`).join("")}</select>
-    <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}"></div>
-    <div class="boite"><table class="suivi"><thead><tr><th>Établissement · site (${esc(camp.Annee)})</th><th>Contenu ${esc(camp.Annee)}</th><th>Fiche ${active ? esc(active.Annee) : "en cours"}</th><th>Changements</th><th></th></tr></thead>
-    <tbody>${corps || `<tr><td colspan="5" class="etat">Aucune fiche.</td></tr>`}</tbody></table></div>`;
+const ICONE_PDF = `<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6"/><path d="m9 15 3 3 3-3"/></svg>`;
+
+// Export PDF d'une fiche (même mise en page que dans le catalogue)
+async function exporterPdf(f) {
+  try {
+    await chargerPdf();
+    const an = CAMP_DE(f);
+    const doc = genererPdf({ seul: true, titre: `Catalogue Accompagnement apprentissage ${an} - ${f.Etablissement || ""}`, pages: [], groupes: [[nomDep(f), [f]]] }, D);
+    const nom = String(f.Etablissement || "fiche").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    doc.save(`fiche-${nom}-${an}.pdf`);
+  } catch (err) { MSG = { cl: "err", txt: "Export PDF impossible : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 
-function ligne(f) {
-  const e = etape(f);
-  const dates = [f.Lien_envoye_le, f.Ouverte_le, f.Soumise_le, null, f.Finalisee_le];
+// f : fiche affichée (nom cliquable) ; s : fiche de la campagne en cours (étape, changements, actions) ; close : onglet des campagnes closes
+function ligne(f, s, close) {
+  const nom = `<button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span>`;
+  const sel = VUE === f.id || (s && VUE === s.id) ? ' class="selection"' : "";
+  if (!s) return `<tr${sel}><td>${nom}</td><td colspan="3"><span class="sous">pas de fiche dans la campagne en cours</span></td>
+    <td><div class="boutons"><button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche en PDF">${ICONE_PDF}PDF</button></div></td></tr>`;
+  const e = etape(s);
+  const dates = [s.Lien_envoye_le, s.Ouverte_le, s.Soumise_le, null, s.Finalisee_le];
   const barres = ETAPES.map((lib, i) => `<i class="${i < e ? "f" : i === e && e >= 3 && e < 5 ? "c" : ""}" title="${esc(lib)}${dates[i] ? " · " + dateFr(dates[i]) : ""}"></i>`).join("");
-  const ch = changements(f);
+  const ch = changements(s);
   const nbCh = ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous">aucun</span>`
-    : `<button class="lien-fiche" data-ouvrir="${f.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
-  const der = echanges(f)[0];
-  const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : f.Soumise_le ? `Soumise · ${dateFr(f.Soumise_le)}` : f.Lien_envoye_le ? `Lien envoyé · ${dateFr(f.Lien_envoye_le)}` : "—";
+    : `<button class="lien-fiche" data-ouvrir="${s.id}">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
+  const der = echanges(s)[0];
+  const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Soumise · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "—";
   let actions = "";
-  if (e === 0) actions += `<button class="mini prim" data-envoyer="${f.id}">Envoyer</button>`;
-  if (e === 1 || e === 2) actions += `<button class="mini" data-relancer="${f.id}">Relancer</button>`;
-  if (e >= 3 && e < 5) actions += `<button class="mini prim" data-finaliser="${f.id}">Finaliser</button>`;
-  if (e === 5) actions += `<button class="mini" data-definaliser="${f.id}">Rouvrir</button>`;
-  actions += `<button class="mini" data-ouvrir="${f.id}" aria-expanded="${OUVERTE === f.id}">${OUVERTE === f.id ? "Fermer" : "Détails"}</button>`;
-  return `<tr${VUE === f.id ? ' class="selection"' : ""}><td><button class="lien-fiche" data-voir="${f.id}" title="Ouvrir la fiche dans le formulaire">${esc(f.Etablissement)}</button><span class="sous">${esc(f.Site || "")}</span></td>
-    <td><div class="etapes">${barres}</div><span class="etiq${enRetard(f) ? " retard" : ""}">${esc(libEtape(e))}${enRetard(f) ? " · sans réponse" : ""}</span></td>
-    <td>${nbCh}</td><td>${derTxt}</td><td>${esc(f.Prochaine_action || "")}</td><td><div class="boutons">${actions}</div></td></tr>`;
+  if (close) actions += `<button class="mini" data-voir="${s.id}">Fiche ${esc(CAMP_DE(s))}</button>`;
+  else {
+    if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Envoyer</button>`;
+    if (e === 1 || e === 2) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
+    if (e >= 3 && e < 5) actions += `<button class="mini prim" data-finaliser="${s.id}">Finaliser</button>`;
+    if (e === 5) actions += `<button class="mini" data-definaliser="${s.id}">Rouvrir</button>`;
+  }
+  actions += `<button class="mini" data-ouvrir="${s.id}" aria-expanded="${OUVERTE === s.id}">${OUVERTE === s.id ? "Fermer" : "Détails"}</button>`;
+  actions = `<div class="boutons">${actions}</div><div class="boutons" style="margin-top:6px"><button class="mini pdf" data-pdf="${f.id}" title="Télécharger la fiche ${esc(CAMP_DE(f))} en PDF">${ICONE_PDF}PDF</button></div>`;
+  return `<tr${sel}><td>${nom}</td>
+    <td><div class="etapes">${barres}</div><span class="etiq${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${enRetard(s) ? " · sans réponse" : ""}</span>${s.Prochaine_action ? `<span class="sous">→ ${esc(s.Prochaine_action)}</span>` : ""}</td>
+    <td>${nbCh}</td><td>${derTxt}</td><td>${actions}</td></tr>`;
 }
 
 function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison seule)
@@ -362,6 +358,7 @@ document.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixArchive") { ARCH = D.campagnes.find(c => c.id === +el.value); choisirCampagne(); OUVERTE = null; MSG = null; return afficher(); }
   if (el.id === "fDep") { FILTRE.dep = el.value; return afficher(); }
+  if (el.id === "fEtape") { FILTRE.etape = el.value; return afficher(); }
   if (el.dataset.prochaine) return appliquer([["UpdateRecord", "Fiches", +el.dataset.prochaine, { Prochaine_action: el.value }]], "Prochaine action enregistrée.");
 });
 app.addEventListener("input", e => {
@@ -370,16 +367,16 @@ app.addEventListener("input", e => {
 document.addEventListener("click", async e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset, fiche = id => D.fiches.find(f => f.id === +id);
-  if (d.filtreEtape !== undefined) { FILTRE.etape = FILTRE.etape === d.filtreEtape ? "" : d.filtreEtape; FILTRE.retard = false; return afficher(); }
-  if (d.retard) { FILTRE.retard = !FILTRE.retard; FILTRE.etape = ""; FILTRE.ch = false; return afficher(); }
-  if (d.avecCh) { FILTRE.ch = !FILTRE.ch; FILTRE.etape = ""; FILTRE.retard = false; return afficher(); }
-  if (d.onglet) { ONGLET = d.onglet; choisirCampagne(); OUVERTE = null; VUE = null; MSG = null; PANNEAU = null; FILTRE.etape = ""; FILTRE.retard = false; FILTRE.ch = false; return afficher(); }
+  if (d.retard) { FILTRE.retard = !FILTRE.retard; return afficher(); }
+  if (d.avecCh) { FILTRE.ch = !FILTRE.ch; return afficher(); }
+  if (d.onglet) { ONGLET = d.onglet; choisirCampagne(); OUVERTE = null; VUE = null; MSG = null; PANNEAU = null; FILTRE.etape = ""; FILTRE.retard = false; FILTRE.ch = false; viderSelection(); return afficher(); }
   if (d.voir) {
     VUE = +d.voir;
     if (DANS_GRIST) { try { await grist.setSelectedRows([VUE]); await grist.setCursorPos({ rowId: VUE }); } catch (err) { /* widget non relié */ } }
-    MSG = { cl: "ok", txt: `Fiche de ${fiche(d.voir).Etablissement} ouverte dans le formulaire (sur cette page). Si rien ne s'affiche : ajoutez le widget Formulaire à la page, « Sélectionner par » ce tableau.` };
+    MSG = null;
     return afficher();
   }
+  if (d.pdf) return exporterPdf(fiche(d.pdf));
   if (d.ouvrir) { OUVERTE = OUVERTE === +d.ouvrir ? null : +d.ouvrir; MSG = null; return afficher(); }
   if (d.envoyer) return envoyer(fiche(d.envoyer), false);
   if (d.relancer) return envoyer(fiche(d.relancer), true);
@@ -399,8 +396,12 @@ document.addEventListener("click", async e => {
   }
 });
 
+// Aucune fiche choisie : le formulaire relié affiche une invite au lieu d'une fiche au hasard
+function viderSelection() { if (DANS_GRIST) grist.setSelectedRows([]).catch(() => {}); }
+
 if (DANS_GRIST) {
   grist.ready({ requiredAccess: "full", allowSelectBy: true });
+  viderSelection();
   grist.onRecords(() => charger());
 }
 charger();

@@ -18,6 +18,7 @@ let ETAT = { contacts: [], formations: [], accomp: [] };
 let OUVERTS = new Set(["etab", "contacts"]);
 let MESSAGE = null, CERTIF = false, MOTIF = "";
 const SAIO = () => FICHES.length > 1; // propriétaire du document : modification par le SAIO
+let ATTENTE = false; // formulaire relié au suivi, aucune fiche choisie
 let CHOIX = null; // formation choisie dans le référentiel (le champ est alors verrouillé)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -38,6 +39,7 @@ async function charger() {
   // Seules les fiches de la campagne active (Code_actif rempli) ; un établissement n'en voit qu'une.
   FICHES = f.filter(x => x.Code_actif); if (!FICHES.length) FICHES = f;
   REF = re;
+  if (ATTENTE) { REF = re; app.innerHTML = `<p class="info">Cliquez sur un établissement dans le tableau de suivi pour afficher sa fiche ici.</p>`; document.getElementById("titre").textContent = "Fiche de renseignement"; document.getElementById("resume").innerHTML = ""; return; }
   const garde = FICHE && f.find(x => x.id === FICHE.id); // fiche demandée (ex. depuis le suivi), même d'une autre campagne
   if (garde && !FICHES.includes(garde)) FICHES = [garde, ...FICHES];
   FICHE = garde || FICHES[0] || null;
@@ -323,9 +325,9 @@ if (DANS_GRIST) {
   grist.onRecords(() => { if (!ORIG || !nbModifs()) charger(); });
   // Fiche choisie dans le tableau de suivi (widget relié « Sélectionner par »)
   grist.onRecord(r => {
-    if (!r || (FICHE && r.id === FICHE.id)) return;
-    if (ORIG && nbModifs()) { MESSAGE = { cl: "err", txt: "Des modifications ne sont pas enregistrées : enregistrez-les avant d'ouvrir une autre fiche." }; return afficher(); }
-    FICHE = { id: r.id }; MESSAGE = null; charger();
+    if (r && FICHE && r.id === FICHE.id && !ATTENTE) return;
+    if (ORIG && !ATTENTE && nbModifs()) { MESSAGE = { cl: "err", txt: "Des modifications ne sont pas enregistrées : enregistrez-les avant d'ouvrir une autre fiche." }; return afficher(); }
+    ATTENTE = !r; FICHE = r ? { id: r.id } : null; ORIG = r ? ORIG : null; MESSAGE = null; charger();
   });
 }
 charger();
