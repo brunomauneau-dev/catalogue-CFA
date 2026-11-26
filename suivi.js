@@ -90,12 +90,19 @@ function changements(f) {
   const de = (t, id) => D[t].filter(r => r.Fiche === id);
   const fo0 = de("formations", prec.id), fo1 = de("formations", f.id);
   const memeFo = (a, b) => norm(a.Intitule) === norm(b.Intitule);
-  const fo = apparier(fo0, fo1, (a, b) => memeFo(a, b) && norm(a.Filiere) === norm(b.Filiere) && norm(a.Remarque) === norm(b.Remarque), memeFo);
+  const fo = apparier(fo0, fo1, (a, b) => memeFo(a, b) && norm(a.Lieu) === norm(b.Lieu) && norm(a.Filiere) === norm(b.Filiere) && norm(a.Remarque) === norm(b.Remarque),
+    (a, b) => memeFo(a, b) && norm(a.Lieu) === norm(b.Lieu));
   for (const n of fo1) {
     const o = fo.paires.get(n);
+    if (!o && fo.restants.some(x => memeFo(x, n))) continue; // traité plus bas (changement de site)
     if (!o) out.push({ type: "Formation", lib: "Nouvelle", apres: n.Intitule });
     else if (n.Statut === "Fermée" && o.Statut !== "Fermée") out.push({ type: "Formation", lib: "Fermée", avant: n.Intitule });
     else if (norm(n.Remarque) !== norm(o.Remarque)) out.push({ type: "Formation", lib: "Remarque · " + n.Intitule, avant: o.Remarque, apres: n.Remarque });
+  }
+  // formations non appariées sur le même site : même intitulé ailleurs = changement de site
+  for (const n of fo1.filter(n => !fo.paires.has(n))) {
+    const o = fo.restants.find(x => memeFo(x, n));
+    if (o) { fo.paires.set(n, o); fo.restants.splice(fo.restants.indexOf(o), 1); out.push({ type: "Formation", lib: "Site · " + n.Intitule, avant: o.Lieu || "(sans site)", apres: n.Lieu || "(sans site)" }); }
   }
   for (const o of fo.restants) out.push({ type: "Formation", lib: "Retirée", avant: o.Intitule });
   const co0 = de("contacts", prec.id), co1 = de("contacts", f.id);

@@ -69,3 +69,7 @@ button{font:inherit}
 .bandeau.ok{background:#DCFAE6;border:2px solid #47CD89;color:#054F31}
 .bandeau.err{background:#FEE4E2;border:2px solid #F97066;color:#7A271A}
 #haut{margin:0 0 16px}
+.lieu-ligne{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12px;color:var(--doux);font-weight:400}
+.lieu-ligne input{max-width:260px;min-height:30px;padding:3px 8px;font-size:13px}
+.lieu-ligne.change input{border-color:#C08400;background:#FFF8E6}
+.lieu-ligne .invalide:empty{display:none}

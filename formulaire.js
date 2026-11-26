@@ -156,16 +156,19 @@ function afficher() {
 
   // Formations par filière
   const gf = grouper(ETAT.formations, "Filiere");
+  // CFA à plusieurs sites : le lieu de chaque formation est modifiable (colonne Formations.Lieu)
+  const MULTI = ETAT.formations.some(l => !l._suppr && l.Lieu);
   let nbF = 0;
   const filieres = [...gf].map(([fil, items]) => {
     const vis = items.filter(([l]) => !l._suppr);
     nbF += vis.filter(([l]) => l.Statut !== "Fermée").length;
     const nbFerm = vis.filter(([l]) => l.Statut === "Fermée").length, nbNew = vis.filter(([l]) => !l.id).length;
     const corps = vis.map(([l, i]) => {
-      const cl = !l.id ? "new" : l.Statut === "Fermée" ? "ferme" : changeChamp("formations", l, "Remarque") ? "change" : "";
+      const cl = !l.id ? "new" : l.Statut === "Fermée" ? "ferme" : changeChamp("formations", l, "Remarque") || changeChamp("formations", l, "Lieu") ? "change" : "";
+      const lieu = MULTI ? `<label class="lieu-ligne${changeChamp("formations", l, "Lieu") ? " change" : ""}">Site<input data-t="formations" data-i="${i}" data-c="Lieu" value="${esc(l.Lieu || "")}" placeholder="Site de formation"><span class="invalide"></span></label>` : "";
       const statut = !l.id ? `<span class="pill new">Nouvelle</span><button class="mini" data-suppr="formations" data-i="${i}">Retirer</button>`
         : `<span class="seg" role="group" aria-label="Statut"><button data-statut="Maintenue" data-i="${i}" aria-pressed="${l.Statut !== "Fermée"}">Maintenue</button><button class="fermee" data-statut="Fermée" data-i="${i}" aria-pressed="${l.Statut === "Fermée"}">Fermée</button></span>`;
-      return `<div class="ligne ${cl}"><span class="nom">${esc(l.Intitule)}${l.Remarque ? `<span class="rem">${esc(l.Remarque)}</span>` : ""}</span>${statut}</div>`;
+      return `<div class="ligne ${cl}"><span class="nom">${esc(l.Intitule)}${l.Remarque ? `<span class="rem">${esc(l.Remarque)}</span>` : ""}${lieu}</span>${statut}</div>`;
     }).join("");
     return pli("fil:" + fil, fil, `<span class="pill">${vis.length}</span>` + (nbFerm ? `<span class="pill ferme">${nbFerm} fermée${nbFerm > 1 ? "s" : ""}</span>` : "") + (nbNew ? `<span class="pill new">${nbNew} nouvelle${nbNew > 1 ? "s" : ""}</span>` : ""), corps);
   }).join("");
@@ -180,7 +183,8 @@ function afficher() {
       : `<label class="champ">Diplôme et intitulé — choisir dans la liste officielle
         <input id="nvFormation" list="listeRef" placeholder="Tapez quelques lettres, puis choisissez dans la liste"></label>
       <datalist id="listeRef">${options}</datalist>`}
-      <label class="champ">Remarque (facultatif)<input id="nvRemarque" placeholder="Ex. : possible aussi sur un autre site"></label>
+      <label class="champ">Site de formation (si votre établissement a plusieurs sites)<input id="nvLieu" placeholder="Ex. : Site de Bayonne"></label>
+      <label class="champ">Remarque (facultatif)<input id="nvRemarque" placeholder="Ex. : en 2 ans"></label>
       <span class="invalide" id="nvErreur"></span>
       <button class="btn sec" id="ajoutFormation"${CHOIX ? "" : " disabled"}>Ajouter cette formation</button></div></section>`;
 
@@ -276,8 +280,10 @@ function ajouterFormation() {
   const ref = CHOIX;
   if (!ref) { document.getElementById("nvErreur").textContent = "Choisissez un intitulé dans la liste proposée (formation absente : signalez-la au SAIO)."; return; }
   const intitule = libRef(ref);
-  if (ETAT.formations.some(l => !l._suppr && l.Intitule === intitule)) { CHOIX = null; afficher(); document.getElementById("nvErreur").textContent = "Cette formation figure déjà dans la fiche."; return; }
-  ETAT.formations.push({ Fiche: FICHE.id, Intitule: intitule, Filiere: ref.Filiere || "Autres", Statut: "Nouvelle", Remarque: document.getElementById("nvRemarque").value.trim() });
+  const lieuNv = ((document.getElementById("nvLieu") || {}).value || "").trim();
+  if (ETAT.formations.some(l => !l._suppr && l.Intitule === intitule && String(l.Lieu || "").trim() === lieuNv)) { CHOIX = null; afficher(); document.getElementById("nvErreur").textContent = "Cette formation figure déjà dans la fiche."; return; }
+  const lieu = (document.getElementById("nvLieu") || {}).value || "";
+  ETAT.formations.push({ Fiche: FICHE.id, Intitule: intitule, Filiere: ref.Filiere || "Autres", Statut: "Nouvelle", Remarque: document.getElementById("nvRemarque").value.trim(), ...(lieu.trim() ? { Lieu: lieu.trim() } : {}) });
   OUVERTS.add("fil:" + (ref.Filiere || "Autres"));
   CHOIX = null;
   afficher();
@@ -285,7 +291,7 @@ function ajouterFormation() {
 
 // ---------- Enregistrement dans Grist ----------
 const TABLES = { contacts: "Contacts", formations: "Formations", accomp: "Accompagnement" };
-const COLS = { contacts: ["Fonction", "Nom", "Telephone", "Mail"], formations: ["Intitule", "Filiere", "Statut", "Remarque"], accomp: ["Groupe", "Action", "Cochee"] };
+const COLS = { contacts: ["Fonction", "Nom", "Telephone", "Mail"], formations: ["Intitule", "Filiere", "Statut", "Remarque", "Lieu"], accomp: ["Groupe", "Action", "Cochee"] };
 
 function actions(soumettre) {
   const a = [];

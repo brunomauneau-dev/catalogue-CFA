@@ -73,6 +73,14 @@ n'est jamais retouché : le logo PDF le télécharge à l'identique, un clic sur
 insère ses pages sans pied de page ni onglet (bibliothèque `lib/pdf-lib.min.js`, licence MIT). À défaut, la pièce jointe
 `Document_fourni` (PDF de l'an dernier) est utilisée. « Demander le PDF » prépare le mail ; pas de comparaison champ par champ.
 
+### Formations : filière et site
+
+Chaque formation porte la filière du référentiel (colonne `Filiere`) et, pour les CFA à plusieurs sites, son site
+(colonne `Lieu`, texte libre). Le formulaire propose le champ « Site » sur chaque formation dès que la fiche en a un,
+et dans « Ajouter une formation ». Le catalogue regroupe les formations par site quand la fiche en a, sinon par filière.
+La comparaison apparie les formations par intitulé et site : un même intitulé passé d'un site à un autre est signalé
+« Site », sans être compté comme retiré puis ajouté.
+
 ## Référentiel des intitulés
 
 `referentiel/intitules.json` : référentiel **provisoire**, construit à partir des libellés du catalogue 2026,

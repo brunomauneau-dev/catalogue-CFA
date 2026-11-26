@@ -402,7 +402,9 @@ function genererPdf(opts, donnees) {
     const main = colonne(84, A4.l - 84 - A4.marge, 41, ctx);
     intertitre(main, "Formations proposées");
     const forms = DONNEES.formations.filter(x => x.Fiche === f.id && x.Statut !== "Fermée");
-    const fil = new Map(); for (const x of forms) { const k = x.Filiere || "Autres formations"; if (!fil.has(k)) fil.set(k, []); fil.get(k).push(x); }
+    // CFA à plusieurs sites : formations regroupées par site (comme dans le catalogue d'origine), sinon par filière
+    const parSite = forms.some(x => x.Lieu);
+    const fil = new Map(); for (const x of forms) { const k = (parSite ? x.Lieu : null) || x.Filiere || "Autres formations"; if (!fil.has(k)) fil.set(k, []); fil.get(k).push(x); }
     if (!forms.length) texte(main, "Aucune formation renseignée.", { c: COUL.doux });
     for (const [k, l] of fil) {
       place(main, lh(10.5) * 3);
