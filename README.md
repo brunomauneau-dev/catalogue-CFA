@@ -19,6 +19,18 @@ Les règles d'accès du document limitent chaque lien à sa propre fiche (`user.
 
 Hors de Grist, la page s'affiche avec des données fictives (démonstration).
 
+## Tableau de suivi du SAIO (widget Grist)
+
+`suivi.html` (+ `suivi.js`, `suivi.css`) : une ligne par fiche de la campagne, regroupées par département,
+avec les étapes (lien envoyé, ouverte, soumise, mise en forme, en discussion, finalisée), les changements
+par rapport à la fiche de l'an dernier, les correspondances et la prochaine action.
+« Envoyer » et « Relancer » préparent le mail dans la messagerie (rien n'est envoyé automatiquement).
+
+Dans Grist : Widget personnalisé → URL `…/suivi.html`, données : table *Fiches*, accès complet.
+Tables utilisées en plus : `Campagnes` (Annee, Date_limite, Active, URL_formulaire), `Correspondances`
+(Fiche, Date, Type, Objet, Resume) ; colonnes de suivi dans `Fiches` (Campagne, Fiche_precedente,
+Lien_envoye_le, Ouverte_le, Soumise_le, Finalisee_le, Etape_SAIO, Prochaine_action, Code_actif).
+
 ## Référentiel des intitulés
 
 `referentiel/intitules.json` : référentiel **provisoire**, construit à partir des libellés du catalogue 2026,

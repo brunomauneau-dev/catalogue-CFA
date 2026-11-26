@@ -33,7 +33,9 @@ async function charger() {
   if (!DANS_GRIST) return demo();
   const lire = n => grist.docApi.fetchTable(n).then(lignes).catch(() => []);
   const [f, fo, co, ac, re] = await Promise.all(["Fiches", "Formations", "Contacts", "Accompagnement", "Referentiel"].map(lire));
-  FICHES = f; REF = re;
+  // Seules les fiches de la campagne active (Code_actif rempli) ; un établissement n'en voit qu'une.
+  FICHES = f.filter(x => x.Code_actif); if (!FICHES.length) FICHES = f;
+  REF = re;
   const garde = FICHE && FICHES.find(x => x.id === FICHE.id);
   FICHE = garde || FICHES[0] || null;
   if (!FICHE) { app.innerHTML = `<p class="alerte">Aucune fiche accessible. Vérifiez que vous avez ouvert le lien complet reçu par mail.</p>`; return; }
@@ -41,6 +43,10 @@ async function charger() {
   ETAT = { contacts: de(co), formations: de(fo), accomp: de(ac) };
   ORIG = copie({ fiche: FICHE, ...ETAT });
   afficher();
+  // Première ouverture par l'établissement : on coche l'étape « Ouverte » du suivi.
+  if (FICHES.length === 1 && "Ouverte_le" in FICHE && !FICHE.Ouverte_le) {
+    grist.docApi.applyUserActions([["UpdateRecord", "Fiches", FICHE.id, { Ouverte_le: Date.now() / 1000 }]]).catch(() => {});
+  }
 }
 
 function demo() {

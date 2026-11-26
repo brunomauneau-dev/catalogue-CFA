@@ -1,0 +1,33 @@
+.contenu.large{max-width:1400px}
+.compteurs{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.compteur{flex:1 1 130px;background:#fff;border:1px solid var(--bord);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.compteur b{font-size:26px;line-height:1.1}
+.compteur span{font-size:13px;color:var(--doux)}
+.compteur[aria-pressed="true"]{border:2px solid var(--bleu);background:var(--bleu-pale)}
+.filtres{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.filtres select,.filtres input{width:auto;min-width:160px}
+.boite{overflow-x:auto;background:#fff;border:1px solid var(--bord);border-radius:10px}
+table.suivi{width:100%;border-collapse:collapse;font-size:14px}
+table.suivi th{text-align:left;font-size:12px;font-weight:600;color:var(--doux);padding:8px 10px;border-bottom:1px solid var(--bord);background:#F8F9FB;white-space:nowrap}
+table.suivi td{padding:10px;border-bottom:1px solid #EEF0F3;vertical-align:top}
+tr.dep td{background:#F1F4F9;font-weight:700;color:#1F2A37;font-size:13px}
+tr.detail>td{background:#FAFBFC;padding:14px}
+.sous{display:block;font-size:12px;color:var(--doux);font-weight:400}
+.etapes{display:flex;gap:3px;margin-bottom:4px}
+.etapes i{display:block;width:18px;height:7px;border-radius:3px;background:#DDE1E7}
+.etapes i.f{background:var(--bleu)}
+.etapes i.c{background:#D97706}
+.etiq{font-size:12px;font-weight:600;color:#364152}
+.boutons{display:flex;flex-wrap:wrap;gap:6px}
+.mini.prim{background:var(--bleu);border-color:var(--bleu);color:#fff}
+.retard{color:var(--rouge);font-weight:600}
+.grille-detail{display:flex;flex-wrap:wrap;gap:16px}
+.grille-detail>section{flex:1 1 380px;min-width:0;background:#fff;border:1px solid var(--bord);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.diff{display:flex;gap:8px;align-items:baseline;font-size:14px;padding:4px 0;border-bottom:1px solid #F1F3F5}
+.diff .avant{color:#7A271A;text-decoration:line-through}
+.diff .apres{color:var(--vert);font-weight:600}
+.ech{font-size:14px;padding:6px 0;border-bottom:1px solid #F1F3F5}
+.ech b{font-weight:600}
+.form-ech{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.form-ech .plein{grid-column:1/-1}
+@media (max-width:640px){.form-ech{grid-template-columns:1fr}}
