@@ -16,6 +16,7 @@ let FICHES = [], FICHE = null, ORIG = null, REF = [];
 let ETAT = { contacts: [], formations: [], accomp: [] };
 let OUVERTS = new Set(["etab", "contacts"]);
 let MESSAGE = null, CERTIF = false;
+let CHOIX = null; // formation choisie dans le référentiel (le champ est alors verrouillé)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const app = document.getElementById("app");
@@ -85,6 +86,9 @@ function controle(champ, v) {
   return "";
 }
 
+const libRef = r => (r.Diplome ? r.Diplome + " " : "") + r.Intitule;
+const trouverRef = v => REF.find(r => libRef(r).toLowerCase() === String(v).trim().toLowerCase());
+
 // ---------- Affichage ----------
 function champ(table, idx, c, libelle, ligne) {
   const v = ligne[c] ?? "";
@@ -104,6 +108,11 @@ function grouper(liste, cle) {
   const g = new Map();
   liste.forEach((l, i) => { if (l._suppr && !l.id) return; const k = l[cle] || "Autres"; if (!g.has(k)) g.set(k, []); g.get(k).push([l, i]); });
   return g;
+}
+
+function bandeau(id) {
+  if (!MESSAGE) return "";
+  return `<div class="bandeau ${MESSAGE.cl}" role="${MESSAGE.cl === "err" ? "alert" : "status"}"${id ? ` id="${id}"` : ""}>${MESSAGE.cl === "ok" ? "✓ " : "⚠ "}${esc(MESSAGE.txt)}</div>`;
 }
 
 function afficher() {
@@ -142,17 +151,20 @@ function afficher() {
     }).join("");
     return pli("fil:" + fil, fil, `<span class="pill">${vis.length}</span>` + (nbFerm ? `<span class="pill ferme">${nbFerm} fermée${nbFerm > 1 ? "s" : ""}</span>` : "") + (nbNew ? `<span class="pill new">${nbNew} nouvelle${nbNew > 1 ? "s" : ""}</span>` : ""), corps);
   }).join("");
-  const options = REF.map(r => `<option value="${esc((r.Diplome ? r.Diplome + " " : "") + r.Intitule)}">`).join("");
+  const options = REF.map(r => `<option value="${esc(libRef(r))}">`).join("");
   const blocFormations = `<section class="carte"><div class="entete"><h2>Formations proposées : ${nbF}</h2>
       <span><button class="mini" data-tout="fil:" data-ouvre="1">Tout déplier</button> <button class="mini" data-tout="fil:" data-ouvre="">Tout replier</button></span></div>
     ${filieres || `<p class="etat">Aucune formation pour l'instant.</p>`}
     <div class="nouvelle"><b>Ajouter une formation</b>
-      <label class="champ">Diplôme et intitulé — choisir dans la liste officielle
-        <input id="nvFormation" list="listeRef" placeholder="Tapez quelques lettres"></label>
-      <datalist id="listeRef">${options}</datalist>
+      ${CHOIX ? `<div class="champ">Formation choisie dans la liste officielle
+        <div class="choisie"><span class="verrou" aria-hidden="true">✓</span><input id="nvFormation" value="${esc(libRef(CHOIX))}" readonly aria-readonly="true">
+        <button class="mini" id="changerFormation">Changer</button></div></div>`
+      : `<label class="champ">Diplôme et intitulé — choisir dans la liste officielle
+        <input id="nvFormation" list="listeRef" placeholder="Tapez quelques lettres, puis choisissez dans la liste"></label>
+      <datalist id="listeRef">${options}</datalist>`}
       <label class="champ">Remarque (facultatif)<input id="nvRemarque" placeholder="Ex. : possible aussi sur un autre site"></label>
       <span class="invalide" id="nvErreur"></span>
-      <button class="btn sec" id="ajoutFormation">Ajouter cette formation</button></div></section>`;
+      <button class="btn sec" id="ajoutFormation"${CHOIX ? "" : " disabled"}>Ajouter cette formation</button></div></section>`;
 
   // Accompagnement par groupe
   const ga = grouper(ETAT.accomp, "Groupe");
@@ -169,12 +181,13 @@ function afficher() {
 
   const envoi = `<section class="carte">
     <label class="coche"><input type="checkbox" id="certif"${CERTIF ? " checked" : ""}>Je certifie l'exactitude de ces informations.</label>
-    <div class="actions"><span class="etat ${MESSAGE ? MESSAGE.cl : ""}" id="etat">${MESSAGE ? esc(MESSAGE.txt) : ""}</span>
+    ${bandeau()}
+    <div class="actions">
       <button class="btn sec" id="enregistrer">Enregistrer et finir plus tard</button>
       <button class="btn" id="envoyer">Envoyer ma fiche</button></div>
     <p class="etat">Rien n'a changé ? Cochez la case et envoyez la fiche telle quelle.</p></section>`;
 
-  app.innerHTML = `${choix}<p class="info">Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien.</p>
+  app.innerHTML = `${choix}${bandeau("haut")}<p class="info">Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien.</p>
     <div class="colonnes"><div class="cote"><section class="carte">${etab}</section><section class="carte">${blocContacts}</section></div>
     <div class="principal">${blocFormations}${blocAccomp}${envoi}</div></div>`;
 }
@@ -187,6 +200,11 @@ app.addEventListener("toggle", e => {
 
 app.addEventListener("input", e => {
   const el = e.target, { t, i, c } = el.dataset;
+  if (el.id === "nvFormation" && !CHOIX) {
+    const r = trouverRef(el.value);
+    if (r) { CHOIX = r; afficher(); const rem = document.getElementById("nvRemarque"); if (rem) rem.focus(); }
+    return;
+  }
   if (!t) return;
   const ligne = t === "fiche" ? FICHE : ETAT[t][+i];
   ligne[c] = el.value;
@@ -212,25 +230,26 @@ app.addEventListener("click", async e => {
   if (d.ajout === "contacts") { ETAT.contacts.push({ Fiche: FICHE.id, Pole: "", Nom: "", Telephone: "", Mail: "" }); OUVERTS.add("contacts"); OUVERTS.add("contact" + (ETAT.contacts.length - 1)); return afficher(); }
   if (d.tout !== undefined) { app.querySelectorAll(`details[data-pli^="${d.tout}"]`).forEach(x => { x.open = !!d.ouvre; }); return; }
   if (b.id === "ajoutFormation") return ajouterFormation();
+  if (b.id === "changerFormation") { CHOIX = null; afficher(); const f = document.getElementById("nvFormation"); if (f) f.focus(); return; }
   if (b.id === "ajoutAction") {
     const v = document.getElementById("nvAction").value.trim(); if (!v) return;
     ETAT.accomp.push({ Fiche: FICHE.id, Groupe: "Autres actions", Action: v, Cochee: true }); OUVERTS.add("acc:Autres actions"); return afficher();
   }
   if (b.id === "enregistrer") return enregistrer(false);
   if (b.id === "envoyer") {
-    if (!document.getElementById("certif").checked) { MESSAGE = { cl: "err", txt: "Cochez la case de certification avant d'envoyer." }; return afficher(); }
+    if (!CERTIF) { MESSAGE = { cl: "err", txt: "Cochez la case de certification avant d'envoyer." }; return afficher(); }
     return enregistrer(true);
   }
 });
 
 function ajouterFormation() {
-  const v = document.getElementById("nvFormation").value.trim();
-  const ref = REF.find(r => ((r.Diplome ? r.Diplome + " " : "") + r.Intitule).toLowerCase() === v.toLowerCase());
+  const ref = CHOIX;
   if (!ref) { document.getElementById("nvErreur").textContent = "Choisissez un intitulé dans la liste proposée (formation absente : signalez-la au SAIO)."; return; }
-  const intitule = (ref.Diplome ? ref.Diplome + " " : "") + ref.Intitule;
-  if (ETAT.formations.some(l => !l._suppr && l.Intitule === intitule)) { document.getElementById("nvErreur").textContent = "Cette formation figure déjà dans la fiche."; return; }
+  const intitule = libRef(ref);
+  if (ETAT.formations.some(l => !l._suppr && l.Intitule === intitule)) { CHOIX = null; afficher(); document.getElementById("nvErreur").textContent = "Cette formation figure déjà dans la fiche."; return; }
   ETAT.formations.push({ Fiche: FICHE.id, Intitule: intitule, Filiere: ref.Filiere || "Autres", Statut: "Nouvelle", Remarque: document.getElementById("nvRemarque").value.trim() });
   OUVERTS.add("fil:" + (ref.Filiere || "Autres"));
+  CHOIX = null;
   afficher();
 }
 
@@ -257,15 +276,19 @@ function actions(soumettre) {
 
 async function enregistrer(soumettre) {
   const a = actions(soumettre);
-  if (!DANS_GRIST) { MESSAGE = { cl: "ok", txt: `Démonstration : ${a.length} changement(s) auraient été enregistrés.` }; return afficher(); }
+  if (!DANS_GRIST) {
+    MESSAGE = { cl: "ok", txt: soumettre ? `Fiche envoyée au SAIO. Merci ! (démonstration : ${a.length} changement(s))` : `Enregistré (démonstration : ${a.length} changement(s)).` };
+    afficher(); const h = document.getElementById("haut"); if (h) h.scrollIntoView({ block: "start" }); return;
+  }
   try {
     if (a.length) await grist.docApi.applyUserActions(a);
-    MESSAGE = { cl: "ok", txt: soumettre ? "Fiche envoyée au SAIO. Merci !" : "Enregistré. Vous pouvez revenir plus tard avec le même lien." };
+    MESSAGE = { cl: "ok", txt: soumettre ? "Fiche envoyée au SAIO. Merci ! Vous pouvez encore la corriger avec le même lien." : "Enregistré. Vous pouvez revenir plus tard avec le même lien." };
     await charger();
   } catch (err) {
     MESSAGE = { cl: "err", txt: "L'enregistrement a été refusé : " + (err && err.message ? err.message : err) };
     afficher();
   }
+  const h = document.getElementById("haut"); if (h) h.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 if (DANS_GRIST) {

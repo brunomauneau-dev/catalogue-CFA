@@ -62,3 +62,10 @@ button{font:inherit}
 .etat.ok{color:var(--vert);font-weight:600}
 .etat.err{color:var(--rouge);font-weight:600}
 @media (max-width:520px){.deux{grid-template-columns:1fr}}
+.choisie{display:flex;gap:8px;align-items:center}
+.choisie input[readonly]{background:#EEF0F3;color:#364152;border-color:#CBD2DA;cursor:not-allowed;font-weight:600}
+.verrou{flex:none;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:999px;background:#DCFAE6;color:var(--vert);font-weight:700}
+.bandeau{padding:16px 18px;border-radius:10px;font-size:18px;font-weight:600;line-height:1.4}
+.bandeau.ok{background:#DCFAE6;border:2px solid #47CD89;color:#054F31}
+.bandeau.err{background:#FEE4E2;border:2px solid #F97066;color:#7A271A}
+#haut{margin:0 0 16px}
