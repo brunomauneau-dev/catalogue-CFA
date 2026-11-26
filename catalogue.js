@@ -125,10 +125,10 @@ function afficher() {
     <div class="cote">
       <section class="carte"><h2>Couverture</h2>
         <label class="champ">Habillage<select id="cStyle"><option value="guide"${STYLE === "guide" ? " selected" : ""}>Guide (une couleur par département)</option><option value="original"${STYLE === "original" ? " selected" : ""}>Fidèle au catalogue 2026 (vert et framboise)</option><option value="moderne"${STYLE === "moderne" ? " selected" : ""}>Modernisé (bleu France)</option></select></label>
-        <label class="champ">Image de couverture (facultatif : page entière, PNG ou JPEG)<input type="file" id="cImage" accept="image/png,image/jpeg"></label>
-        ${COUV ? `<p class="etat">Couverture : ${esc(COUV_NOM)} <button class="mini" id="cSansImage">Retirer</button></p>`
-          : idsPieces(CAMP.Couverture).length ? `<p class="etat">Couverture de la campagne ${esc(CAMP.Annee)} : l'image déposée dans la table Campagnes (colonne « Couverture ») est utilisée. Choisir un fichier ci-dessus la remplace pour cette génération.</p>`
-          : `<p class="etat">Sans image, la couverture est composée avec le titre, l'année et le logo. Pour la garder d'une génération à l'autre, déposez-la dans la colonne « Couverture » de la table Campagnes.</p>`}
+        <label class="champ">Page de garde (facultatif : PDF, PNG ou JPEG, format A4)<input type="file" id="cImage" accept="application/pdf,image/png,image/jpeg"></label>
+        ${COUV ? `<p class="etat">Page de garde choisie : ${esc(COUV_NOM)}</p><div class="boutons"><button class="mini prim" id="cMemoriser">Mémoriser pour la campagne ${esc(CAMP.Annee)}</button><button class="mini" id="cSansImage">Retirer</button></div>`
+          : aCouvCampagne() ? `<p class="etat">Page de garde mémorisée pour la campagne ${esc(CAMP.Annee)} : elle est utilisée. Choisir un fichier ci-dessus la remplace.</p><div class="boutons"><button class="mini" id="cOublier">Ne plus l'utiliser</button></div>`
+          : `<p class="etat">Sans page de garde, la couverture est composée avec le titre, l'année et le logo.</p>`}
         <label class="champ">Titre<input id="cTitre" value="Catalogue de l'accompagnement vers l'apprentissage"></label>
         <label class="champ">Sous-titre (facultatif)<input id="cSous" value=""></label>
         <label class="champ">Mention en bas de couverture<input id="cBas" value="Service régional académique de l'information, de l'orientation et de la lutte contre le décrochage scolaire (SRAIOLDS)"></label></section>
@@ -149,14 +149,17 @@ async function apercuPdf(id) {
   } catch (err) { MSG = { cl: "err", txt: "Aperçu impossible : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 
-// Couverture enregistrée avec la campagne (colonne Campagnes.Couverture, image pleine page) -> data URL
+// Page de garde enregistrée avec la campagne (colonne Campagnes.Couverture) : texte « data: » mémorisé depuis cet écran,
+// ou pièce jointe Grist (PDF, PNG ou JPEG) -> data URL
+const aCouvCampagne = () => !!CAMP && ((typeof CAMP.Couverture === "string" && CAMP.Couverture.startsWith("data:")) || idsPieces(CAMP.Couverture).length > 0);
 async function couvertureCampagne() {
+  if (CAMP && typeof CAMP.Couverture === "string" && CAMP.Couverture.startsWith("data:")) return CAMP.Couverture;
   const id = idsPieces(CAMP && CAMP.Couverture)[0];
   if (!id || !DANS_GRIST) return null;
   try {
     const { token, baseUrl } = await grist.docApi.getAccessToken({ readOnly: true });
     const blob = await (await fetch(`${baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(token)}`)).blob();
-    if (!/^image\/(png|jpe?g)$/i.test(blob.type)) return null;
+    if (!/^(image\/(png|jpe?g)|application\/pdf)$/i.test(blob.type)) return null;
     return await new Promise(ok => { const f = new FileReader(); f.onload = () => ok(f.result); f.readAsDataURL(blob); });
   } catch (e) { return null; }
 }
@@ -201,6 +204,12 @@ racine.addEventListener("click", e => {
   const b = e.target.closest("button"); if (!b) return;
   const d = b.dataset;
   if (d.apercuPdf) return apercuPdf(+d.apercuPdf);
+  if (b.id === "cMemoriser") {
+    if (COUV.length > 6e6) { MSG = { cl: "err", txt: "Fichier trop lourd pour être mémorisé (4 Mo maximum) : utilisez-le pour cette génération seulement." }; return afficher(); }
+    const v = COUV; COUV = null; COUV_NOM = "";
+    return appliquer([["UpdateRecord", "Campagnes", CAMP.id, { Couverture: v }]], `Page de garde mémorisée pour la campagne ${CAMP.Annee}.`);
+  }
+  if (b.id === "cOublier") return appliquer([["UpdateRecord", "Campagnes", CAMP.id, { Couverture: null }]], "La page de garde de la campagne n'est plus utilisée.");
   if (b.id === "cSansImage") { COUV = null; COUV_NOM = ""; return afficher(); }
   if (b.id === "generer") { b.disabled = true; b.textContent = "Génération…"; return generer(); }
   if (b.id === "ajoutPage") {

@@ -59,7 +59,7 @@ async function finaliserPdf(doc, opts) {
   const sortie = await PDFDocument.load(doc.output("arraybuffer"));
   for (const pl of places) {
     const src = await PDFDocument.load(pl.octets, { ignoreEncryption: true });
-    const pages = await sortie.embedPdf(src, src.getPageIndices());
+    const pages = await sortie.embedPdf(src, src.getPageIndices().slice(0, pl.max || pl.pages.length));
     pages.forEach((pg, k) => {
       const cible = sortie.getPage(pl.pages[k] - 1), { width, height } = cible.getSize();
       const e = Math.min(width / pg.width, height / pg.height);
@@ -250,7 +250,13 @@ function genererPdf(opts, donnees) {
 
   // 1. Couverture : image fournie (page entière) ou couverture composée selon le style
   if (opts.seulementPages) opts.couverture = null; // aperçu des pages d'information : pas de couverture (page 1 supprimée ensuite)
-  if (opts.couverture) {
+  if (opts.couverture && /^data:application\/pdf/i.test(opts.couverture)) { // page de garde fournie en PDF : sa 1re page remplace la page 1
+    try {
+      const bin = atob(opts.couverture.split(",")[1]), octets = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
+      opts._places.push({ octets: octets.buffer, pages: [1], max: 1 });
+    } catch (e) { opts.couverture = null; }
+  } else if (opts.couverture) {
     try { doc.addImage(opts.couverture, /^data:image\/png/i.test(opts.couverture) ? "PNG" : "JPEG", 0, 0, A4.l, A4.h); } catch (e) { /* image illisible : couverture composée */ opts.couverture = null; }
   }
   if (!opts.couverture && !opts.seulementPages) {
