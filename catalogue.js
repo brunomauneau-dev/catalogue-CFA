@@ -143,8 +143,9 @@ async function apercuPdf(id) {
   try {
     await chargerPdf();
     const v = c => { const el = racine.querySelector(`[data-p="${id}"][data-c="${c}"]`); return el ? el.value : ""; };
-    const doc = genererPdf({ seulementPages: true, style: STYLE, annee: CAMP.Annee, groupes: [], pages: [{ Titre: v("Titre"), Texte: v("Texte") }] }, D);
-    doc.save(`apercu-page-${id}.pdf`);
+    const opts = { seulementPages: true, style: STYLE, annee: CAMP.Annee, groupes: [], pages: [{ Titre: v("Titre"), Texte: v("Texte") }] };
+    const doc = genererPdf(opts, D);
+    await afficherPdf(doc, opts, `Aperçu : ${v("Titre") || "page d'information"}`, `apercu-page-${id}.pdf`);
   } catch (err) { MSG = { cl: "err", txt: "Aperçu impossible : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 

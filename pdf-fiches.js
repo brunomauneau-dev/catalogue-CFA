@@ -68,11 +68,37 @@ async function finaliserPdf(doc, opts) {
   }
   return await sortie.save();
 }
+// Téléchargement : type « octet-stream » pour que le navigateur enregistre le fichier
+// au lieu de l'ouvrir dans un onglet ou dans un lecteur externe (Adobe…).
 async function telechargerPdf(doc, opts, nom) {
+  enregistrerOctets(await finaliserPdf(doc, opts), nom);
+}
+function enregistrerOctets(octets, nom) {
+  const url = URL.createObjectURL(new Blob([octets], { type: "application/octet-stream" }));
+  const a = document.createElement("a"); a.href = url; a.download = nom; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 4000);
+}
+// Aperçu : le PDF s'affiche dans une fenêtre à l'intérieur du widget (lecteur du navigateur), sans téléchargement
+async function afficherPdf(doc, opts, titre, nom) {
   const octets = await finaliserPdf(doc, opts);
   const url = URL.createObjectURL(new Blob([octets], { type: "application/pdf" }));
-  const a = document.createElement("a"); a.href = url; a.download = nom; document.body.appendChild(a); a.click();
-  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
+  const fond = document.createElement("div");
+  fond.className = "visionneuse";
+  fond.innerHTML = `<div class="visionneuse-boite" role="dialog" aria-modal="true" aria-label="Aperçu PDF">
+      <div class="visionneuse-tete"><b></b><span class="boutons"><button class="mini" data-v="telecharger">Télécharger</button><button class="btn sec" data-v="fermer">✕ Fermer</button></span></div>
+      <iframe title="Aperçu PDF"></iframe></div>`;
+  fond.querySelector("b").textContent = titre || "Aperçu";
+  fond.querySelector("iframe").src = url;
+  const fermer = () => { fond.remove(); URL.revokeObjectURL(url); document.removeEventListener("keydown", echap); };
+  const echap = e => { if (e.key === "Escape") fermer(); };
+  fond.addEventListener("click", e => {
+    const v = e.target.closest("[data-v]"); if (e.target === fond) return fermer();
+    if (!v) return;
+    if (v.dataset.v === "fermer") fermer();
+    if (v.dataset.v === "telecharger") enregistrerOctets(octets, nom || "apercu.pdf");
+  });
+  document.addEventListener("keydown", echap);
+  document.body.appendChild(fond);
 }
 
 // Polices standard du PDF : jeu de caractères WinAnsi. On remplace ce qui n'y est pas.

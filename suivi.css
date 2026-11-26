@@ -81,3 +81,7 @@ tr.dep td{padding:0}
 .apercu-page.style-guide .ap-titre,.apercu-page.style-guide .ap-inter{color:#283448}
 .apercu-page.style-guide .ap-filet{background:#283448}
 .pill.p-ok{background:#DCFAE6;color:#05603A}
+.visionneuse{position:fixed;inset:0;z-index:60;background:rgba(17,24,39,.45);display:flex;align-items:center;justify-content:center;padding:16px}
+.visionneuse-boite{background:#fff;border-radius:8px;width:min(900px,100%);height:min(92vh,1100px);display:flex;flex-direction:column;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.visionneuse-tete{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--bord)}
+.visionneuse iframe{flex:1;border:0;width:100%;background:#525659}
