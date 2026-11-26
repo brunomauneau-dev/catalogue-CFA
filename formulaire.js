@@ -11,7 +11,7 @@ const CHAMPS_FICHE = [
   ["Code_postal", "Code postal"], ["Ville", "Ville"], ["Telephone", "Téléphone"], ["Mail", "Mail"], ["Site_internet", "Site internet"],
 ];
 const PRESENTATION = "Presentation_accompagnement"; // texte d'introduction de l'accompagnement (facultatif)
-const CHAMPS_CONTACT = [["Pole", "Pôle ou filière"], ["Nom", "Nom"], ["Telephone", "Téléphone"], ["Mail", "Mail"]];
+const CHAMPS_CONTACT = [["Pole", "Pôle ou filière"], ["Fonction", "Fonction"], ["Nom", "Nom"], ["Telephone", "Téléphone"], ["Mail", "Mail"]];
 
 let FICHES = [], FICHE = null, ORIG = null, REF = [];
 let ETAT = { contacts: [], formations: [], accomp: [] };
@@ -136,9 +136,9 @@ function afficher() {
 
   // Contacts
   const vivants = ETAT.contacts.map((l, i) => [l, i]).filter(([l]) => !l._suppr);
-  const contacts = vivants.map(([l, i]) => pli("contact" + i, l.Pole || l.Nom || "Nouveau contact",
+  const contacts = vivants.map(([l, i]) => pli("contact" + i, [l.Pole || l.Fonction, l.Nom].filter(Boolean).join(" · ") || "Nouveau contact",
       !l.id ? `<span class="pill new">Nouveau</span>` : "",
-      CHAMPS_CONTACT.map(([c, lib]) => champ("contacts", i, c, lib, l)).join("") +
+      CHAMPS_CONTACT.filter(([c]) => c in l || c !== "Fonction").map(([c, lib]) => champ("contacts", i, c, lib, l)).join("") +
       `<button class="mini" data-suppr="contacts" data-i="${i}">Retirer ce contact</button>`)).join("");
   const blocContacts = pli("contacts", "Contacts", `<span class="pill">${vivants.length}</span>`,
     contacts + `<button class="ajout" data-ajout="contacts">+ Ajouter un contact</button>`);
@@ -236,7 +236,7 @@ app.addEventListener("click", async e => {
   const d = b.dataset;
   if (d.statut) { ETAT.formations[+d.i].Statut = d.statut; return afficher(); }
   if (d.suppr) { const l = ETAT[d.suppr][+d.i]; if (l.id) l._suppr = true; else ETAT[d.suppr].splice(+d.i, 1); return afficher(); }
-  if (d.ajout === "contacts") { ETAT.contacts.push({ Fiche: FICHE.id, Pole: "", Nom: "", Telephone: "", Mail: "" }); OUVERTS.add("contacts"); OUVERTS.add("contact" + (ETAT.contacts.length - 1)); return afficher(); }
+  if (d.ajout === "contacts") { ETAT.contacts.push({ Fiche: FICHE.id, Pole: "", ...(ETAT.contacts.some(c => "Fonction" in c) || (ORIG.contacts[0] && "Fonction" in ORIG.contacts[0]) ? { Fonction: "" } : {}), Nom: "", Telephone: "", Mail: "" }); OUVERTS.add("contacts"); OUVERTS.add("contact" + (ETAT.contacts.length - 1)); return afficher(); }
   if (d.tout !== undefined) { app.querySelectorAll(`details[data-pli^="${d.tout}"]`).forEach(x => { x.open = !!d.ouvre; }); return; }
   if (b.id === "ajoutFormation") return ajouterFormation();
   if (b.id === "changerFormation") { CHOIX = null; afficher(); const f = document.getElementById("nvFormation"); if (f) f.focus(); return; }
@@ -264,7 +264,7 @@ function ajouterFormation() {
 
 // ---------- Enregistrement dans Grist ----------
 const TABLES = { contacts: "Contacts", formations: "Formations", accomp: "Accompagnement" };
-const COLS = { contacts: ["Pole", "Nom", "Telephone", "Mail"], formations: ["Intitule", "Filiere", "Statut", "Remarque"], accomp: ["Groupe", "Action", "Cochee"] };
+const COLS = { contacts: ["Pole", "Fonction", "Nom", "Telephone", "Mail"], formations: ["Intitule", "Filiere", "Statut", "Remarque"], accomp: ["Groupe", "Action", "Cochee"] };
 
 function actions(soumettre) {
   const a = [];

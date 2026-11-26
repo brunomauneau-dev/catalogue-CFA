@@ -298,7 +298,8 @@ function genererPdf(opts) {
       for (const x of cts) {
         place(cote, lh(9) * 4);
         if (x.Pole) texte(cote, x.Pole, { taille: 9, style: "bold" });
-        if (x.Nom) texte(cote, x.Nom, { taille: 9 });
+        if (x.Nom) texte(cote, x.Nom, { taille: 9, style: x.Pole ? "normal" : "bold" });
+        if (x.Fonction) texte(cote, x.Fonction, { taille: 8.5, style: "italic", c: COUL.doux });
         if (x.Telephone) texte(cote, x.Telephone, { taille: 9 });
         if (x.Mail) texte(cote, x.Mail, { taille: 9, c: COUL.bleu });
         cote.y += 3;

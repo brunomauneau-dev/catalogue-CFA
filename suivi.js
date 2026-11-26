@@ -78,13 +78,17 @@ function changements(f) {
   }
   for (const o of fo0) if (!fo1.find(x => norm(x.Intitule) === norm(o.Intitule))) out.push({ type: "Formation", lib: "Retirée", avant: o.Intitule });
   const co0 = de("contacts", prec.id), co1 = de("contacts", f.id);
+  // contacts rapprochés par nom, sinon par pôle / fonction
+  const cle = c => norm(c.Nom) || norm(c.Pole) || norm(c.Fonction);
+  const pareil = (a, b) => (norm(a.Nom) && norm(a.Nom) === norm(b.Nom)) || (!norm(a.Nom) && cle(a) === cle(b)) || (norm(a.Pole) && norm(a.Pole) === norm(b.Pole) && norm(a.Fonction) === norm(b.Fonction));
+  const etiq = c => c.Pole || c.Fonction || "";
   for (const n of co1) {
-    const o = co0.find(x => norm(x.Pole) === norm(n.Pole));
-    if (!o) { out.push({ type: "Contact", lib: "Nouveau · " + (n.Pole || ""), apres: n.Nom }); continue; }
-    for (const [c, lib] of [["Nom", "Nom"], ["Telephone", "Téléphone"], ["Mail", "Mail"]])
-      if (norm(n[c]) !== norm(o[c])) out.push({ type: "Contact", lib: lib + " · " + (n.Pole || ""), avant: o[c], apres: n[c] });
+    const o = co0.find(x => pareil(x, n));
+    if (!o) { out.push({ type: "Contact", lib: "Nouveau · " + etiq(n), apres: n.Nom }); continue; }
+    for (const [c, lib] of [["Nom", "Nom"], ["Fonction", "Fonction"], ["Telephone", "Téléphone"], ["Mail", "Mail"]])
+      if (norm(n[c]) !== norm(o[c])) out.push({ type: "Contact", lib: lib + " · " + etiq(n), avant: o[c], apres: n[c] });
   }
-  for (const o of co0) if (!co1.find(x => norm(x.Pole) === norm(o.Pole))) out.push({ type: "Contact", lib: "Retiré · " + (o.Pole || ""), avant: o.Nom });
+  for (const o of co0) if (!co1.find(x => pareil(o, x))) out.push({ type: "Contact", lib: "Retiré · " + etiq(o), avant: o.Nom });
   const ac0 = de("accomp", prec.id), ac1 = de("accomp", f.id);
   for (const n of ac1) {
     const o = ac0.find(x => norm(x.Action) === norm(n.Action));

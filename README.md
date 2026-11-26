@@ -52,6 +52,13 @@ Colonne facultative `Presentation_accompagnement` dans `Fiches` (texte d'introdu
 `referentiel/intitules.json` : référentiel **provisoire**, construit à partir des libellés du catalogue 2026,
 en attendant la référence officielle du SAIO.
 
+## Import du catalogue 2026 (outils/)
+
+Scripts Python (pdfplumber) qui lisent le catalogue PDF et créent le document Grist de production,
+sans jamais afficher de valeur (seulement des comptes) :
+`lecture.py` (PDF → fiches), `preparer.py` (noms provisoires, filières, alertes « A_verifier »),
+`pages_info.py` (pages d'information), `creer_document.py` (structure, règles d'accès, import).
+
 ## Données
 
 Aucune donnée réelle (nom, adresse, téléphone, mail) dans ce dépôt public : elles restent dans Grist.
