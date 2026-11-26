@@ -211,8 +211,7 @@ function ligne(f, s, close) {
   const der = echanges(s)[0];
   const derTxt = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Soumise · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "—";
   let actions = "";
-  if (close) actions += `<button class="mini" data-voir="${s.id}">Fiche ${esc(CAMP_DE(s))}</button>`;
-  else {
+  if (!close) {
     if (e === 0) actions += `<button class="mini prim" data-envoyer="${s.id}">Envoyer</button>`;
     if (e === 1 || e === 2) actions += `<button class="mini" data-relancer="${s.id}">Relancer</button>`;
     if (e >= 3 && e < 5) actions += `<button class="mini prim" data-finaliser="${s.id}">Finaliser</button>`;
