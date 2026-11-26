@@ -26,7 +26,8 @@ DIPL = re.compile(r"^(CAP\s*A\b|CAPA\b|CAP\b|C\.A\.P\.?|BAC\s*PRO|Bac\s*Pro(fess
 PUCES = "•▪●◦‣∙·➢➤►▶■□-–—*o"
 
 def nettoie(t):
-    return re.sub(r"\s+", " ", t.replace("", "").replace("", "").replace("", "").replace("", "")).strip()
+    # symboles de police (puces Wingdings, Symbol…) : zone Unicode « usage privé », illisible ailleurs
+    return re.sub(r"\s+", " ", re.sub("[\ue000-\uf8ff]", "", t)).strip()
 
 def sans_puce(t):
     return t.lstrip(PUCES + "  \t").strip()

@@ -124,12 +124,13 @@ function enRetard(f) { // lien envoyé, pas soumise, rien depuis 7 jours
 function afficher() {
   const camp = CAMP;
   const active = D.campagnes.find(c => c.Active), closes = D.campagnes.filter(c => !c.Active).sort((a, b) => String(b.Annee).localeCompare(String(a.Annee)));
-  document.getElementById("titre").textContent = ONGLET === "closes" ? "Campagnes closes" : active ? `Suivi de la campagne ${active.Annee}` : "Suivi des fiches";
-  document.getElementById("campagne").innerHTML = `<div class="boutons"><div class="onglets" role="tablist">
+  // En-tête fixe : le titre et les onglets ne bougent pas d'un onglet à l'autre
+  document.getElementById("titre").textContent = "Suivi des fiches";
+  document.getElementById("campagne").innerHTML = `<div class="onglets-p" role="tablist">
       <button role="tab" data-onglet="encours" aria-selected="${ONGLET === "encours"}">Campagne en cours${active ? " " + esc(active.Annee) : ""}</button>
-      <button role="tab" data-onglet="closes" aria-selected="${ONGLET === "closes"}">Campagnes closes${closes.length ? " (" + closes.map(c => esc(c.Annee)).join(", ") + ")" : ""}</button></div>
-    ${ONGLET === "closes" && closes.length > 1 ? `<select id="choixArchive" aria-label="Campagne close" style="width:auto">${closes.map(c => `<option value="${c.id}"${ARCH && c.id === ARCH.id ? " selected" : ""}>${esc(c.Annee)}</option>`).join("")}</select>` : ""}
-    ${ONGLET === "encours" ? `<button class="mini" data-panneau="nouvelle">Préparer une nouvelle campagne</button>` : ""}</div>`;
+      <button role="tab" data-onglet="closes" aria-selected="${ONGLET === "closes"}">Campagnes closes${closes.length ? " (" + closes.map(c => esc(c.Annee)).join(", ") + ")" : ""}</button>
+      ${ONGLET === "closes" && closes.length > 1 ? `<select id="choixArchive" aria-label="Campagne close" style="width:auto;margin-left:auto">${closes.map(c => `<option value="${c.id}"${ARCH && c.id === ARCH.id ? " selected" : ""}>${esc(c.Annee)}</option>`).join("")}</select>` : ""}</div>`;
+  document.getElementById("actionsCampagne").innerHTML = `<button class="mini" data-panneau="nouvelle" style="visibility:${ONGLET === "encours" ? "visible" : "hidden"}">Préparer une nouvelle campagne</button>`;
   if (!camp) {
     app.innerHTML = ONGLET === "closes" ? `<p class="etat">Aucune campagne close.</p>`
       : `<p class="alerte">Aucune campagne en cours.</p>${closes.map(c => `<button class="mini prim" data-activer="${c.id}">Activer la campagne ${esc(c.Annee)}</button> `).join("")}`;
