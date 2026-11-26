@@ -38,3 +38,8 @@ tr.selection td{background:var(--bleu-pale)}
 .puce-filtre[aria-pressed="true"]{background:var(--bleu);border-color:var(--bleu);color:#fff}
 .alerte-filtre{border-color:#FDA29B;color:var(--rouge)}
 .mini.pdf{color:var(--bleu);border-color:#B9CDEB;background:#F5F8FD}
+.sous-onglets{display:flex;flex-wrap:wrap;gap:2px;border-bottom:2px solid var(--bord);margin-bottom:12px}
+.sous-onglets button{font:inherit;font-size:14px;font-weight:600;color:var(--doux);background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:8px 12px;min-height:40px;cursor:pointer}
+.sous-onglets button span{font-size:12px;font-weight:600;background:#EEF2F6;color:#364152;border-radius:999px;padding:1px 7px;margin-left:4px}
+.sous-onglets button[aria-selected="true"]{color:var(--bleu);border-bottom-color:var(--bleu)}
+.sous-onglets button[aria-selected="true"] span{background:var(--bleu-pale);color:var(--bleu)}

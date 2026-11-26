@@ -28,7 +28,7 @@ Hors de Grist, la page s'affiche avec des données fictives (démonstration).
   « Envoyer » et « Relancer » préparent le mail dans la messagerie (rien n'est envoyé automatiquement).
 - *Campagnes closes* : consultation seule ; pour chaque fiche, comparaison avec sa fiche de la campagne en cours.
 
-Les deux onglets ont la même présentation (filtre d'étape, département, recherche, « avec changements », « sans réponse »).
+Les deux onglets ont la même présentation : sous-onglets par département (« Toutes les fiches » par défaut), filtre d'étape, recherche, « avec changements », « sans réponse ».
 Chaque ligne a un bouton « PDF » qui télécharge la fiche avec la mise en page du catalogue (moteur commun `pdf-fiches.js`).
 
 Un clic sur un établissement ouvre sa fiche dans le formulaire placé sur la même page (« Sélectionner par » le suivi) :
