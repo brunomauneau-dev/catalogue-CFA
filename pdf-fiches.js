@@ -50,9 +50,19 @@ async function chargerDocuments(fiches) {
       else {
         if (typeof grist === "undefined" || window.parent === window) continue;
         acces = acces || await grist.docApi.getAccessToken({ readOnly: true });
-        const rep = await fetch(`${acces.baseUrl}/attachments/${idsPieces(f.Document_fourni)[0]}/download?auth=${encodeURIComponent(acces.token)}`);
-        if (!rep.ok) throw new Error(`pièce jointe refusée par Grist (HTTP ${rep.status})`);
-        octets = await rep.arrayBuffer();
+        // plusieurs pièces jointes (ex. fiche sur deux pages) : assemblées dans l'ordre, pages copiées sans retouche
+        const parts = [];
+        for (const id of idsPieces(f.Document_fourni)) {
+          const rep = await fetch(`${acces.baseUrl}/attachments/${id}/download?auth=${encodeURIComponent(acces.token)}`);
+          if (!rep.ok) throw new Error(`pièce jointe refusée par Grist (HTTP ${rep.status})`);
+          parts.push(await rep.arrayBuffer());
+        }
+        if (parts.length === 1) octets = parts[0];
+        else {
+          const tout = await window.PDFLib.PDFDocument.create();
+          for (const o of parts) { const src = await window.PDFLib.PDFDocument.load(o, { ignoreEncryption: true }); (await tout.copyPages(src, src.getPageIndices())).forEach(pg => tout.addPage(pg)); }
+          octets = (await tout.save()).buffer;
+        }
       }
       const pdf = await window.PDFLib.PDFDocument.load(octets, { ignoreEncryption: true });
       docs.set(f.id, { octets, nb: pdf.getPageCount() });
