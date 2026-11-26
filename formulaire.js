@@ -17,7 +17,8 @@ let FICHES = [], FICHE = null, ORIG = null, REF = [];
 let ETAT = { contacts: [], formations: [], accomp: [] };
 let OUVERTS = new Set(["etab", "contacts"]);
 let MESSAGE = null, CERTIF = false, MOTIF = "";
-const SAIO = () => FICHES.length > 1; // propriétaire du document : modification par le SAIO
+const SAIO = () => FICHES.length > 1;
+const fermee = () => SAIO() && FICHE && "Code_actif" in FICHE && !FICHE.Code_actif; // fiche d'une campagne close // propriétaire du document : modification par le SAIO
 let ATTENTE = false; // formulaire relié au suivi, aucune fiche choisie
 let CHOIX = null; // formation choisie dans le référentiel (le champ est alors verrouillé)
 
@@ -203,14 +204,13 @@ function afficher() {
       <button class="btn" id="envoyer">Envoyer ma fiche</button></div>
     <p class="etat">Rien n'a changé ? Cochez la case et envoyez la fiche telle quelle.</p></section>`;
 
-  app.innerHTML = `${choix}${bandeau("haut")}<p class="info">${SAIO() ? "Mode SAIO : vous modifiez directement la fiche de l'établissement (par exemple à sa demande, par téléphone ou par mail), puis cliquez sur « Enregistrer les modifications » en bas de page." : "Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien."}</p>
+  app.innerHTML = `${choix}${bandeau("haut")}<p class="info">${fermee() ? "Fiche d'une campagne close, en consultation seule : elle sert de base de comparaison." : SAIO() ? "Mode SAIO : vous modifiez directement la fiche de l'établissement (par exemple à sa demande, par téléphone ou par mail), puis cliquez sur « Enregistrer les modifications » en bas de page." : "Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien."}</p>
     <div class="colonnes"><div class="cote"><section class="carte">${etab}</section><section class="carte">${blocContacts}</section></div>
     <div class="principal">${blocFormations}${blocAccomp}${envoi}</div></div>`;
   // Fiche d'une campagne close : consultation seule (base de comparaison)
   if (SAIO() && "Code_actif" in FICHE && !FICHE.Code_actif) {
     app.querySelectorAll("input, textarea, button").forEach(el => { if (!el.dataset.tout) el.disabled = true; });
     const sec = app.querySelector(".principal > section:last-child"); if (sec) sec.innerHTML = `<p class="info" style="margin:0">Fiche d'une campagne close : consultation seule. Elle sert de base de comparaison.</p>`;
-    app.insertAdjacentHTML("afterbegin", `<p class="bandeau err" style="margin-bottom:12px">Campagne close : consultation seule.</p>`);
   }
 }
 
