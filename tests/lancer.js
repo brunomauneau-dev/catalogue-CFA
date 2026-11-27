@@ -235,6 +235,20 @@ test("catalogue", "PDF complet (données fictives riches) : pages, rubriques, ti
   await sansErreur(p); await p.close();
 });
 
+test("catalogue", "page d'information : conventions de mise en forme (aperçu et PDF)", async () => {
+  const p = await page("catalogue.html");
+  await p.click("details.pli summary");
+  for (const [sel, n] of [[".ap-rub", 1], [".ap-chapo", 1], [".ap-encadre", 1], [".ap-alerte", 1], [".ap-champs div", 2], [".ap-case", 1], [".ap-col", 2], [".ap-num", 1]])
+    egal(await p.locator(".apercu-page " + sel).count(), n, "aperçu : " + sel);
+  await p.locator(".apercu-page").screenshot({ path: path.join(SORTIE, "captures", "catalogue-page-info.png") });
+  const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#generer")]);
+  const fic = path.join(SORTIE, "catalogue-pages-info.pdf"); await dl.saveAs(fic);
+  const txt = execFileSync("pdftotext", ["-f", "2", "-l", "2", "-layout", fic, "-"]).toString();
+  for (const x of ["RUBRIQUE FICTIVE", "Chapô de démonstration", "Encadré de démonstration", "CHAMP FICTIF", "DATE", "Colonne A", "Colonne B", "Interlocuteur fictif"]) verifier(txt.includes(x), "PDF : " + x);
+  verifier(/des voeux\./.test(txt), "« vœux » écrit « voeux », bien espacé");
+  await sansErreur(p); await p.close();
+});
+
 // ---------------------------------------------------------------- affichage : 3 largeurs, sans débordement
 for (const [fichier, nom, avant] of [["index.html", "formulaire"], ["suivi.html", "suivi"], ["suivi.html", "suivi-catalogue", async p => { await p.click('[data-onglet="catalogue"]'); await p.waitForTimeout(400); }], ["catalogue.html", "catalogue"]]) {
   for (const [lib, l, h] of LARGEURS) test("affichage", `${nom} · ${lib} (${l} px) : pas de débordement horizontal`, async () => {

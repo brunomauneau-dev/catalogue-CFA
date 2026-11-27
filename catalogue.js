@@ -42,7 +42,7 @@ function demo() {
       .map(([Intitule, Filiere, Fiche], i) => ({ id: i + 1, Fiche, Intitule, Filiere, Statut: "Maintenue", Remarque: i === 0 ? "Possible aussi sur un autre site" : "" })),
     contacts: [1, 2, 3, 4].map(n => ({ id: n, Fiche: n, Fonction: "Accueil des candidats", Nom: "Prénom NOM", Telephone: "05 00 00 00 0" + n, Mail: "contact" + n + "@exemple.fr" })),
     accomp: [1, 2, 3].flatMap(n => ["Entretien individuel", "Mise en relation avec des entreprises", "Job dating"].map((Action, i) => ({ id: n * 10 + i, Fiche: n, Groupe: "", Action, Cochee: i !== 2 }))),
-    pages: [{ id: 1, Ordre: 1, Titre: "Quels sont mes droits et mes obligations ?", Afficher: true, Texte: "Texte de démonstration.\n\n- **Gras** entre doubles astérisques\n- Lien : [Parcoursup](https://www.parcoursup.fr)\n\n## Intertitre\nParagraphe ordinaire." }],
+    pages: [{ id: 1, Ordre: 1, Titre: "Page d’information fictive", Afficher: true, Texte: "@ Rubrique fictive\n>> Chapô de démonstration (texte fictif).\n\n## Intertitre\nParagraphe avec du **gras** et un lien : [exemple](https://www.exemple.fr).\n- premier point\n- second point\n\n> Encadré de démonstration.\n! Alerte de démonstration.\n\n___ Champ fictif || Date\n[ ] case à cocher\n\n== Colonne A\n- point A\n== Colonne B\n- point B\n==\n\n(1) Interlocuteur fictif\nTexte de l’interlocuteur, avec des vœux." }],
   };
   CAMP = D.campagnes[0];
   window.CATALOGUE_DEMO = D; // données fictives, pour les essais hors de Grist
@@ -85,17 +85,34 @@ function alertes(toutes, ret) {
 function enLigneHtml(t) {
   return esc(t).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<span class="lien">$1</span>');
 }
-function apercuHtml(titre, texte) {
-  let html = `<div class="ap-titre">${esc(titre || "")}</div><div class="ap-filet"></div>`, liste = false;
-  for (const brut of String(texte || "").split(/\r?\n/)) {
-    const l = brut.trimEnd();
-    if (/^\s*[-*]\s+/.test(l)) { if (!liste) { html += "<ul>"; liste = true; } html += `<li>${enLigneHtml(l.replace(/^\s*[-*]\s+/, ""))}</li>`; continue; }
-    if (liste) { html += "</ul>"; liste = false; }
-    if (!l.trim()) { html += '<div class="ap-vide"></div>'; continue; }
-    if (/^##\s+/.test(l)) { html += `<div class="ap-inter">${enLigneHtml(l.replace(/^##\s+/, ""))}</div>`; continue; }
-    html += `<p>${enLigneHtml(l)}</p>`;
+function apercuHtml(titre, texte) { // même découpage que le PDF (pdf-fiches.js, pageInfo)
+  const L = String(texte || "").split(/\r?\n/).map(l => l.trimEnd());
+  const rub = (L.find(l => /^@/.test(l.trim())) || "").replace(/^\s*@\s*/, "");
+  let html = `<div class="ap-bandeau">${rub ? `<div class="ap-rub">${esc(rub)}</div>` : ""}<div class="ap-titre">${esc(titre || "")}</div></div><div class="ap-corps">`;
+  let bloc = null; // bloc ouvert : encadre | alerte | col | num | ul | cases
+  const fermer = () => { if (bloc) html += bloc === "colonnes" ? "</div></div>" : "</div>"; bloc = null; };
+  const ouvrir = (k, h) => { fermer(); html += h; bloc = k; };
+  for (const l of L) {
+    const t = l.trim(); let m;
+    if (/^@/.test(t)) continue;
+    if (!t) { if (bloc && bloc !== "colonnes" && bloc !== "num") fermer(); html += '<div class="ap-vide"></div>'; continue; }
+    if ((m = t.match(/^>>\s*(.*)$/))) { fermer(); html += `<p class="ap-chapo">${enLigneHtml(m[1])}</p>`; continue; }
+    if ((m = t.match(/^##\s+(.*)$/))) { fermer(); html += `<div class="ap-inter">${enLigneHtml(m[1])}</div>`; continue; }
+    if ((m = t.match(/^>\s?(.*)$/))) { if (bloc !== "encadre") ouvrir("encadre", '<div class="ap-encadre">'); html += `<p>${enLigneHtml(m[1])}</p>`; continue; }
+    if ((m = t.match(/^!\s?(.*)$/))) { if (bloc !== "alerte") ouvrir("alerte", '<div class="ap-alerte">'); html += `<p>${enLigneHtml(m[1])}</p>`; continue; }
+    if ((m = t.match(/^___\s*(.*)$/))) { fermer(); const parts = m[1] ? m[1].split("||") : [""]; html += `<div class="ap-champs">${parts.map(x => `<div><small>${esc(x.trim())}</small><span></span></div>`).join("")}</div>`; continue; }
+    if ((m = t.match(/^==\s*(.*)$/))) {
+      if (!m[1]) { fermer(); continue; }
+      if (bloc === "colonnes") html += `</div><div class="ap-col"><b>${esc(m[1])}</b>`; else ouvrir("colonnes", `<div class="ap-colonnes"><div class="ap-col"><b>${esc(m[1])}</b>`);
+      continue;
+    }
+    if ((m = t.match(/^\((\d+)\)\s*(.*)$/))) { ouvrir("num", `<div class="ap-num"><span>${esc(m[1])}</span><b>${enLigneHtml(m[2])}</b>`); continue; }
+    if ((m = t.match(/^\[\s?\]\s+(.*)$/))) { html += `<p class="ap-case">${enLigneHtml(m[1])}</p>`; continue; }
+    if ((m = t.match(/^[-*•]\s+(.*)$/))) { html += `<p class="ap-puce">${enLigneHtml(m[1])}</p>`; continue; }
+    html += `<p>${enLigneHtml(t)}</p>`;
   }
-  return html + (liste ? "</ul>" : "");
+  fermer();
+  return html + "</div>";
 }
 function majApercu(id) {
   const v = c => { const el = racine.querySelector(`[data-p="${id}"][data-c="${c}"]`); return el ? el.value : ""; };
@@ -136,7 +153,7 @@ function afficher() {
         <p class="etat">Ordre (comme le catalogue 2026) : couverture, pages d'information, sommaire, « Autre (Greta) » (PDF fournis par les GRETA, repris tels quels), puis chaque département avec sa page de séparation ; établissements par ordre alphabétique. Les formations « Fermée » n'apparaissent pas.</p>
       </section>
       <section class="carte"><div class="entete"><h2>Pages d'information</h2><button class="mini" id="ajoutPage">+ Ajouter une page</button></div>
-        <p class="etat">Placées après la couverture. Mise en forme : <b>**gras**</b>, liste avec « - » en début de ligne, intertitre avec « ## », lien avec [texte](adresse).</p>
+        <p class="etat">Placées après la couverture. Mise en forme, en début de ligne : « @ » rubrique (petit surtitre), « >> » chapô, « ## » intertitre, « - » liste, « [ ] » case à cocher, « > » encadré, « ! » alerte, « ___ Libellé » ligne à remplir (« ___ A || B » : deux champs), « == Titre » colonne (deux à la suite : côte à côte ; « == » seul pour finir), « (1) Titre » interlocuteur numéroté. Dans le texte : <b>**gras**</b>, lien [texte](adresse).</p>
         ${blocPages || `<p class="etat">Aucune page.</p>`}</section>
     </div>
     <div class="cote">

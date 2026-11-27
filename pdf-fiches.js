@@ -129,7 +129,7 @@ function afficherOctets(octets, titre, nom) {
 }
 
 // Polices standard du PDF : jeu de caractères WinAnsi. On remplace ce qui n'y est pas.
-const REMPL = { "’": "'", "‘": "'", "“": "\"", "”": "\"", "–": "-", "—": "-", "…": "...", " ": " ", " ": " ", "→": "->", "≈": "~", "✓": "", "•": "•" };
+const REMPL = { "œ": "oe", "Œ": "OE", "’": "'", "‘": "'", "“": "\"", "”": "\"", "–": "-", "—": "-", "…": "...", " ": " ", " ": " ", "→": "->", "≈": "~", "✓": "", "•": "•" };
 const OK_WINANSI = new Set([..."€‚ƒ„†‡ˆ‰Š‹ŒŽ˜™š›œžŸ•"]);
 const net = s => [...String(s ?? "").normalize("NFC")].map(c => REMPL[c] ?? c).join("").split("").map(c => (c.charCodeAt(0) < 256 || OK_WINANSI.has(c) ? c : "?")).join("");
 
@@ -211,7 +211,10 @@ function genererPdf(opts, donnees) {
 
   // Colonne de texte qui passe à la page suivante (pages partagées entre colonnes d'une même fiche).
   function colonne(x, w, y, ctx) { return { x, w, y, ctx, idx: 0 }; }
+  let SEC = false; // mesure à blanc (hauteur d'un bloc avant de dessiner son fond)
+  const mesurer = (col, fn) => { const c = { ...col, y: 0, sim: true }; SEC = true; try { fn(c); } finally { SEC = false; } return c.y; };
   function place(col, h) {
+    if (col.sim) return;
     if (col.y + h <= A4.bas) return;
     col.idx++;
     if (col.idx >= col.ctx.pages.length) col.ctx.pages.push(col.ctx.nouvelle());
@@ -224,8 +227,8 @@ function genererPdf(opts, donnees) {
     const ls = doc.splitTextToSize(net(s), col.w - retrait);
     ls.forEach((l, i) => {
       place(col, lh(taille));
-      if (puce && i === 0) doc.text(puce, col.x + retrait - 3.5, col.y, { baseline: "top" });
-      doc.text(l, col.x + retrait, col.y, { baseline: "top" });
+      if (!SEC && puce && i === 0) doc.text(puce, col.x + retrait - 3.5, col.y, { baseline: "top" });
+      if (!SEC) doc.text(l, col.x + retrait, col.y, { baseline: "top" });
       col.y += lh(taille);
     });
     col.y += apres;
@@ -241,14 +244,14 @@ function genererPdf(opts, donnees) {
       col.y += 1;
     }
   }
-  function enLigne(col, s, retrait, puce) {
-    const taille = 10.5, hl = lh(taille, 1.4), mots = [];
+  function enLigne(col, s, retrait, puce, { taille = 10.5, gras: tousGras = false, c = null } = {}) {
+    const hl = lh(taille, 1.4), mots = [];
     for (const m of net(s).split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\))/)) {
       if (!m) continue;
       let t = m, gras = false, url = null;
       if (/^\*\*.*\*\*$/.test(m)) { t = m.slice(2, -2); gras = true; }
       const lien = m.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/); if (lien) { t = lien[1]; url = lien[2]; }
-      for (const p of t.split(/(\s+)/)) if (p) mots.push({ t: p, gras, url });
+      for (const p of t.split(/(\s+)/)) if (p) mots.push({ t: p, gras: gras || tousGras, url, c });
     }
     let ligne = [], larg = 0, premiere = true;
     const largeur = m => { police(m.gras ? "bold" : "normal", taille); return doc.getTextWidth(m.t); };
@@ -256,12 +259,13 @@ function genererPdf(opts, donnees) {
       while (ligne.length && /^\s+$/.test(ligne[ligne.length - 1].t)) ligne.pop();
       place(col, hl);
       let x = col.x + retrait;
-      if (puce && premiere) { police("normal", taille); coul(COUL.bleu); doc.text("•", x - 4, col.y, { baseline: "top" }); }
+      if (!SEC && puce === true && premiere) { police("normal", taille); coul(COUL.bleu); doc.text("•", x - 4, col.y, { baseline: "top" }); }
+      if (!SEC && puce === "case" && premiere) { doc.setDrawColor(...COUL.texte); doc.setLineWidth(0.35); doc.rect(x - 5.2, col.y + 0.4, 3.2, 3.2); }
       for (const m of ligne) {
-        police(m.gras ? "bold" : "normal", taille); coul(m.url ? COUL.bleu : COUL.texte);
+        police(m.gras ? "bold" : "normal", taille); coul(m.url ? COUL.bleu : (m.c || COUL.texte));
         const w = doc.getTextWidth(m.t);
-        doc.text(m.t, x, col.y, { baseline: "top" });
-        if (m.url && !/^\s+$/.test(m.t)) { doc.link(x, col.y, w, hl, { url: m.url }); doc.setDrawColor(...COUL.bleu); doc.line(x, col.y + lh(taille) * 0.85, x + w, col.y + lh(taille) * 0.85); }
+        if (!SEC) doc.text(m.t, x, col.y, { baseline: "top" });
+        if (!SEC && m.url && !/^\s+$/.test(m.t)) { doc.link(x, col.y, w, hl, { url: m.url }); doc.setDrawColor(...COUL.bleu); doc.setLineWidth(0.2); doc.line(x, col.y + lh(taille) * 0.85, x + w, col.y + lh(taille) * 0.85); }
         x += w;
       }
       col.y += hl; ligne = []; larg = 0; premiere = false;
@@ -273,6 +277,126 @@ function genererPdf(opts, donnees) {
       ligne.push(m); larg += largeur(m);
     }
     if (ligne.length) vider();
+  }
+
+  // ---------- Pages d'information (déclinaison « bandeau dégradé ») ----------
+  // Conventions de l'éditeur : « @ rubrique » (1re ligne), « >> chapô », « ## intertitre », « > encadré », « ! alerte »,
+  // « - liste », « [ ] case à cocher », « ___ Libellé » (ligne à remplir ; « ___ A || B » : deux champs ; « ___ » seul :
+  // ligne de plus), « == Titre » (colonne à en-tête ; deux à la suite : côte à côte ; « == » seul : fin),
+  // « (1) Titre » (interlocuteur numéroté, suivi de son texte), **gras**, [lien](adresse).
+  const DEG = [[236, 236, 254], [244, 241, 251], [234, 247, 242]]; // dégradé doux du bandeau
+  const melange = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  function bandeauDegrade(y0, h) {
+    const n = 60, w = A4.l / n;
+    for (let i = 0; i < n; i++) { const t = i / (n - 1), c = t < 0.55 ? melange(DEG[0], DEG[1], t / 0.55) : melange(DEG[1], DEG[2], (t - 0.55) / 0.45); doc.setFillColor(...c); doc.rect(i * w, y0, w + 0.3, h, "F"); }
+  }
+  const VIOLET = [90, 95, 200], ORANGE = [192, 132, 0], ORANGE_PALE = [255, 245, 230], BLEU_PALE = [242, 242, 252], VERT = [26, 115, 70], CANARD = [0, 98, 124];
+  function blocs(src) { // découpe le texte en blocs typés
+    const out = []; let cur = null;
+    const pousse = b => { out.push(b); cur = b; };
+    for (const brut of String(src || "").split(/\r?\n/)) {
+      const l = brut.trimEnd(), t = l.trim();
+      if (!t) { cur = null; out.push({ k: "vide" }); continue; }
+      let m;
+      if ((m = t.match(/^@\s*(.*)$/))) { out.push({ k: "rubrique", t: m[1] }); cur = null; continue; }
+      if ((m = t.match(/^>>\s*(.*)$/))) { out.push({ k: "chapo", t: m[1] }); cur = null; continue; }
+      if ((m = t.match(/^##\s+(.*)$/))) { out.push({ k: "titre", t: m[1] }); cur = null; continue; }
+      if ((m = t.match(/^>\s?(.*)$/))) { if (cur && cur.k === "encadre") cur.l.push(m[1]); else pousse({ k: "encadre", l: [m[1]] }); continue; }
+      if ((m = t.match(/^!\s?(.*)$/))) { if (cur && cur.k === "alerte") cur.l.push(m[1]); else pousse({ k: "alerte", l: [m[1]] }); continue; }
+      if ((m = t.match(/^___\s*(.*)$/))) { out.push({ k: "champ", t: m[1] }); cur = null; continue; }
+      if ((m = t.match(/^==\s*(.*)$/))) {
+        if (!m[1]) { cur = null; continue; }
+        const prec = out[out.length - 1];
+        const c = { titre: m[1], l: [] };
+        if (prec && prec.k === "colonnes" && prec.cols.length < 2 && !prec.ferme) { prec.cols.push(c); cur = { k: "col", c }; }
+        else { const b = { k: "colonnes", cols: [c] }; out.push(b); cur = { k: "col", c }; }
+        continue;
+      }
+      if ((m = t.match(/^\((\d+)\)\s*(.*)$/))) { pousse({ k: "num", n: m[1], titre: m[2], l: [] }); continue; }
+      if (cur && cur.k === "col") { cur.c.l.push(l); continue; }
+      if (cur && cur.k === "num") { cur.l.push(l); continue; }
+      out.push({ k: "ligne", t: l });
+    }
+    return out;
+  }
+  function lignesRiches(col, lignes, opts2 = {}) { // listes, cases, paragraphes
+    for (const l of lignes) {
+      const t = l.trim(); if (!t) { col.y += 2; continue; }
+      if (/^\[\s?\]\s+/.test(t)) { enLigne(col, t.replace(/^\[\s?\]\s+/, ""), 7, "case", opts2); col.y += 1.2; continue; }
+      if (/^[-*•]\s+/.test(t)) { enLigne(col, t.replace(/^[-*•]\s+/, ""), 5, true, opts2); col.y += 0.8; continue; }
+      enLigne(col, t, 0, false, opts2); col.y += 1;
+    }
+  }
+  function boite(col, fond, bord, lignes, opts2) { // encadré : fond, filet à gauche, texte
+    const pad = 3.2, sous = c => { const s = { ...c, x: c.x + pad + 1.2, w: c.w - 2 * pad - 1.2 }; lignesRiches(s, lignes, opts2); c.y = s.y; };
+    const h = mesurer(col, sous) + 2 * pad;
+    place(col, Math.min(h, A4.bas - 30));
+    if (!SEC) { doc.setFillColor(...fond); doc.roundedRect(col.x, col.y, col.w, h, 1.5, 1.5, "F"); doc.setFillColor(...bord); doc.rect(col.x, col.y, 1.2, h, "F"); }
+    const c = { ...col, x: col.x + pad + 1.2, w: col.w - 2 * pad - 1.2, y: col.y + pad }; sous2(c, lignes, opts2); col.y = c.y + pad + 3; col.idx = c.idx;
+  }
+  const sous2 = (c, lignes, o) => lignesRiches(c, lignes, o);
+  function pageInfo(p) {
+    doc.addPage();
+    const B = blocs(p.Texte);
+    const rub = B.find(b => b.k === "rubrique");
+    const ctx = { pages: [doc.getNumberOfPages()], ySuite: 20, nouvelle: () => { doc.addPage(); return doc.getNumberOfPages(); } };
+    const x0 = A4.marge + 5, w0 = A4.l - 2 * A4.marge - 10;
+    police("bold", 19); const lt = doc.splitTextToSize(net(p.Titre || ""), w0);
+    const hb = 22 + lt.length * lh(19, 1.15) + 6;
+    if (GUIDE) bandeauDegrade(0, hb);
+    if (rub) { police("bold", 8); coul(VIOLET); doc.setCharSpace(0.6); doc.text(net(rub.t.toUpperCase()), x0, 15, { baseline: "top" }); doc.setCharSpace(0); }
+    police("bold", 19); coul(GUIDE ? COUL.bleu : P.section); doc.text(lt, x0, 21, { baseline: "top", lineHeightFactor: 1.15 });
+    if (!GUIDE) { doc.setFillColor(...(P.filet || P.section)); doc.rect(x0, hb - 4, 25, 0.8, "F"); }
+    const col = colonne(x0, w0, hb + 8, ctx);
+    for (let i = 0; i < B.length; i++) {
+      const b = B[i];
+      if (b.k === "rubrique") continue;
+      if (b.k === "vide") { col.y += 2; continue; }
+      if (b.k === "chapo") { enLigne(col, b.t, 0, false, { taille: 12, c: [58, 58, 74] }); col.y += 4; continue; }
+      if (b.k === "titre") {
+        place(col, lh(12.5) * 3); col.y += 2.5;
+        if (!SEC) { doc.setFillColor(...VIOLET); doc.roundedRect(col.x, col.y + 1.1, 2.6, 2.6, 0.5, 0.5, "F"); }
+        enLigne({ ...col, x: col.x + 5, w: col.w - 5 }, b.t, 0, false, { taille: 12.5, gras: true }); col.y += lh(12.5, 1.4) + 1.5; continue;
+      }
+      if (b.k === "ligne") { lignesRiches(col, [b.t]); continue; }
+      if (b.k === "encadre") { boite(col, BLEU_PALE, VIOLET, b.l); continue; }
+      if (b.k === "alerte") { boite(col, ORANGE_PALE, ORANGE, b.l, { gras: true }); continue; }
+      if (b.k === "champ") {
+        const parts = b.t ? b.t.split("||").map(s => s.trim()) : [""];
+        const w = (col.w - (parts.length - 1) * 6) / parts.length;
+        place(col, 13);
+        parts.forEach((lib, k) => {
+          const x = col.x + k * (w + 6);
+          if (lib && !SEC) { police("normal", 8); coul([90, 90, 110]); doc.setCharSpace(0.3); doc.text(doc.splitTextToSize(net(lib.toUpperCase()), w)[0], x, col.y + 1, { baseline: "top" }); doc.setCharSpace(0); }
+          if (!SEC) { doc.setDrawColor(181, 181, 197); doc.setLineWidth(0.3); doc.line(x, col.y + (lib ? 10.5 : 7), x + w, col.y + (lib ? 10.5 : 7)); }
+        });
+        col.y += b.t ? 13 : 8; continue;
+      }
+      if (b.k === "num") {
+        const corps = c => { enLigne(c, b.titre, 0, false, { taille: 11.5, gras: true }); c.y += 0.6; lignesRiches(c, b.l); };
+        const sc = { ...col, x: col.x + 12, w: col.w - 12 };
+        place(col, Math.min(mesurer(sc, corps) + 4, 60));
+        if (!SEC) { doc.setFillColor(...VIOLET); doc.circle(col.x + 4, col.y + 3.6, 3.8, "F"); police("bold", 11); coul(COUL.blanc); doc.text(String(b.n), col.x + 4, col.y + 1.4, { align: "center", baseline: "top" }); }
+        const c = { ...sc, y: col.y }; corps(c); col.y = c.y + 5; col.idx = c.idx; continue;
+      }
+      if (b.k === "colonnes") {
+        const n = b.cols.length, gap = 5, w = (col.w - gap * (n - 1)) / n, coulCol = [VERT, CANARD];
+        const contenu = (c, cc) => { c.y += 10; const s = { ...c, x: c.x + 3, w: c.w - 6 }; lignesRiches(s, cc.l, { taille: 10 }); c.y = s.y; };
+        const hs = b.cols.map(cc => mesurer({ ...col, w }, cx => contenu(cx, cc)) + 3);
+        const h = Math.max(...hs);
+        place(col, Math.min(h, A4.bas - 30));
+        b.cols.forEach((cc, k) => {
+          const x = col.x + k * (w + gap);
+          if (!SEC) {
+            doc.setDrawColor(225, 225, 236); doc.setLineWidth(0.3); doc.roundedRect(x, col.y, w, h, 2, 2, "S");
+            doc.setFillColor(...coulCol[k % 2]); doc.roundedRect(x, col.y, w, 8, 2, 2, "F"); doc.rect(x, col.y + 4, w, 4, "F");
+            police("bold", 11); coul(COUL.blanc); doc.text(net(cc.titre), x + 3, col.y + 2, { baseline: "top" });
+          }
+          const c = { ...col, x, w, y: col.y }; contenu(c, cc);
+        });
+        col.y += h + 5; continue;
+      }
+    }
   }
 
   if (opts.seul) {
@@ -320,14 +444,7 @@ function genererPdf(opts, donnees) {
   }
 
   // 2. Pages d'information
-  for (const p of opts.pages) {
-    doc.addPage();
-    const ctx = { pages: [doc.getNumberOfPages()], ySuite: 20, nouvelle: () => { doc.addPage(); return doc.getNumberOfPages(); } };
-    const col = colonne(A4.marge + 5, A4.l - 2 * A4.marge - 10, 25, ctx);
-    texte(col, p.Titre || "", { taille: 20, style: "bold", c: P.section, apres: 2 });
-    doc.setFillColor(...(P.filet || P.section)); doc.rect(col.x, col.y, 25, 0.8, "F"); col.y += 7;
-    riche(col, p.Texte);
-  }
+  for (const p of opts.pages) pageInfo(p);
 
   if (opts.seulementPages) {
     doc.deletePage(1);
