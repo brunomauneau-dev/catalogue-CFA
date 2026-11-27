@@ -69,7 +69,7 @@ function demo() {
     .map(([Diplome, Intitule, Filiere], i) => ({ id: i + 1, Diplome, Intitule, Filiere }));
   ETAT = {
     contacts: [{ id: 1, Fiche: 1, Fonction: "Bâtiment", Nom: "Prénom NOM", Telephone: "05 00 00 00 01", Mail: "contact1@exemple.fr" },
-               { id: 2, Fiche: 1, Fonction: "Site de Villeneuve", Nom: "", Telephone: "05 00 00 00 02", Mail: "" }], // exemple de contact mal lu (« À vérifier »)
+               { id: 2, Fiche: 1, Fonction: "Coordinatrice Prénom FICTIF", Nom: "", Telephone: "05 00 00 00 02", Mail: "" }], // exemple de contact mal lu (« À vérifier ») : nom mêlé à la fonction
     formations: [{ id: 1, Fiche: 1, Intitule: "CAP Maçon", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" },
                  { id: 2, Fiche: 1, Intitule: "CAP Couvreur", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" }],
     accomp: [{ id: 1, Fiche: 1, Groupe: "Candidature et entretien", Action: "Entretien individuel", Cochee: true },
@@ -123,8 +123,9 @@ const TYPES = { Telephone: ' type="tel" inputmode="tel" autocomplete="tel"', Mai
 function contactAVerifier(c) {
   const f = String(c.Fonction || "").trim();
   if (!f && !String(c.Nom || "").trim()) return "ni nom ni fonction";
-  if (/\b[A-ZÉÈ][a-zéèëïî]+(?:-[A-ZÉ][a-zéè]+)?\s+[A-ZÉÈ]{2,}(?:[- ][A-ZÉÈ]{2,})*\b/.test(f)) return "un nom semble mêlé à la fonction";
-  if (/^(Site|Sites|Agence|Agences|Antenne)\b/.test(f)) return "la fonction contient un nom de site";
+  // « Prénom NOM » dans la fonction (les sigles courts comme CAP, MNA ou BTP ne comptent pas)
+  if (/\b[A-ZÉÈ][a-zéèëïî]+(?:-[A-ZÉ][a-zéè]+)?\s+[A-ZÉÈ]{4,}(?:[- ][A-ZÉÈ]{2,})*\b/.test(f.replace(/\b(CAPA|SAPAT|CFAI|AFTRAL|INHNI|GRETA)\b/g, ""))) return "un nom semble mêlé à la fonction";
+  if (String(c.Nom || "").trim() && /^(Site|Sites|Agence|Agences|Antenne)\b/.test(f)) return "la fonction contient un nom de site"; // contact générique d'un site : normal
   if (/^(BAC|Bac|CAP|CAPA|CAPa|BP|BTS)\b/.test(f)) return "la fonction contient un intitulé de formation";
   if (f.length > 90) return "fonction trop longue";
   const lettres = f.replace(/[^A-Za-zÀ-ÿ]/g, "");
