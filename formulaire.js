@@ -68,7 +68,8 @@ function demo() {
   REF = [["CAP", "Maçon", "Bâtiment, Travaux publics"], ["CAP", "Couvreur", "Bâtiment, Travaux publics"], ["CAP", "Carreleur mosaïste", "Bâtiment, Travaux publics"], ["CAP", "Cuisine", "Hôtellerie, Restauration"], ["Bac pro", "Métiers de l'accueil", "Commerce, Vente, Logistique"]]
     .map(([Diplome, Intitule, Filiere], i) => ({ id: i + 1, Diplome, Intitule, Filiere }));
   ETAT = {
-    contacts: [{ id: 1, Fiche: 1, Fonction: "Bâtiment", Nom: "Prénom NOM", Telephone: "05 00 00 00 01", Mail: "contact1@exemple.fr" }],
+    contacts: [{ id: 1, Fiche: 1, Fonction: "Bâtiment", Nom: "Prénom NOM", Telephone: "05 00 00 00 01", Mail: "contact1@exemple.fr" },
+               { id: 2, Fiche: 1, Fonction: "Site de Villeneuve", Nom: "", Telephone: "05 00 00 00 02", Mail: "" }], // exemple de contact mal lu (« À vérifier »)
     formations: [{ id: 1, Fiche: 1, Intitule: "CAP Maçon", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" },
                  { id: 2, Fiche: 1, Intitule: "CAP Couvreur", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" }],
     accomp: [{ id: 1, Fiche: 1, Groupe: "Candidature et entretien", Action: "Entretien individuel", Cochee: true },
@@ -117,6 +118,20 @@ function formater(champ, v) {
 }
 const TYPES = { Telephone: ' type="tel" inputmode="tel" autocomplete="tel"', Mail: ' type="email" inputmode="email" autocomplete="email"', Code_postal: ' inputmode="numeric" autocomplete="postal-code" maxlength="6"', Site_internet: ' inputmode="url"' };
 
+// Contact repris du catalogue 2026 qui semble mal lu (fonction contenant un nom, un site, une formation, un paragraphe…).
+// Règle partagée avec le suivi (window.contactAVerifier). Ne lit que la forme du texte.
+function contactAVerifier(c) {
+  const f = String(c.Fonction || "").trim();
+  if (!f && !String(c.Nom || "").trim()) return "ni nom ni fonction";
+  if (/\b[A-ZÉÈ][a-zéèëïî]+(?:-[A-ZÉ][a-zéè]+)?\s+[A-ZÉÈ]{2,}(?:[- ][A-ZÉÈ]{2,})*\b/.test(f)) return "un nom semble mêlé à la fonction";
+  if (/^(Site|Sites|Agence|Agences|Antenne)\b/.test(f)) return "la fonction contient un nom de site";
+  if (/^(BAC|Bac|CAP|CAPA|CAPa|BP|BTS)\b/.test(f)) return "la fonction contient un intitulé de formation";
+  if (f.length > 90) return "fonction trop longue";
+  const lettres = f.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  if (lettres.length > 6 && lettres === lettres.toUpperCase()) return "fonction en majuscules, peut-être tronquée";
+  return "";
+}
+window.contactAVerifier = contactAVerifier;
 const libRef = r => (r.Diplome ? r.Diplome + " " : "") + r.Intitule;
 const simple = s => String(s ?? "").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim().toLowerCase(); // apostrophe droite ou typographique
 const trouverRef = v => REF.find(r => simple(libRef(r)) === simple(v));
@@ -162,11 +177,14 @@ function afficher() {
 
   // Contacts
   const vivants = ETAT.contacts.map((l, i) => [l, i]).filter(([l]) => !l._suppr);
-  const contacts = vivants.map(([l, i]) => pli("contact" + i, [l.Fonction, l.Nom].filter(Boolean).join(" · ") || "Nouveau contact",
-      !l.id ? `<span class="pill new">Nouveau</span>` : "",
+  const titreContact = l => { const t = [l.Fonction, l.Nom].filter(Boolean).join(" · ") || "Nouveau contact"; return t.length > 70 ? t.slice(0, 67).replace(/\s+\S*$/, "") + "…" : t; };
+  const aVerifier = vivants.filter(([l]) => l.id && contactAVerifier(l)).length;
+  const contacts = vivants.map(([l, i]) => pli("contact" + i, titreContact(l),
+      (!l.id ? `<span class="pill new">Nouveau</span>` : "") + (l.id && contactAVerifier(l) ? `<span class="pill a-verifier" title="${esc(contactAVerifier(l))}">À vérifier</span>` : ""),
       CHAMPS_CONTACT.map(([c, lib]) => champ("contacts", i, c, lib, l)).join("") +
       `<button class="mini" data-suppr="contacts" data-i="${i}">Retirer ce contact</button>`)).join("");
   const blocContacts = pli("contacts", "Contacts", `<span class="pill">${vivants.length}</span>`,
+    (aVerifier ? `<p class="note-verif">${aVerifier > 1 ? `${aVerifier} contacts repris du catalogue de l'an dernier semblent mal lus` : "Un contact repris du catalogue de l'an dernier semble mal lu"} (pastille « À vérifier ») : corrigez la fonction et le nom, ou retirez le contact s'il n'est plus d'actualité.</p>` : "") +
     contacts + `<button class="ajout" data-ajout="contacts">+ Ajouter un contact</button>`);
 
   // Formations par filière
@@ -271,6 +289,7 @@ app.addEventListener("change", e => {
   if (el.id === "motif") { MOTIF = el.value; return; }
   if (el.dataset.coche !== undefined) { ETAT.accomp[+el.dataset.coche].Cochee = el.checked; afficher(); }
   const { t, i, c } = el.dataset;
+  if (t === "contacts" && (c === "Fonction" || c === "Nom")) { const v = formater(c, el.value); ETAT.contacts[+i][c] = v; OUVERTS.add("contact" + i); return afficher(); }
   if (t && c && el.tagName === "INPUT") { // sortie du champ : mise en forme (téléphone 05 56 00 00 00, mail en minuscules…)
     const v = formater(c, el.value);
     if (v !== el.value) { el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); }

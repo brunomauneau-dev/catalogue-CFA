@@ -73,3 +73,5 @@ button{font:inherit}
 .lieu-ligne input{max-width:260px;min-height:30px;padding:3px 8px;font-size:13px}
 .lieu-ligne.change input{border-color:#C08400;background:#FFF8E6}
 .lieu-ligne .invalide:empty{display:none}
+.pill.a-verifier{background:#FFF4E5;color:#8A4B00;border:1px solid #F3C98B}
+.note-verif{margin:0 0 10px;font-size:13px;color:#8A4B00;background:#FFF8EE;border:1px solid #F3D9B5;border-radius:6px;padding:8px 10px}

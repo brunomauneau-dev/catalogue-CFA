@@ -298,11 +298,11 @@ function ligne(f, s, close) {
   if (!s) return `<tr${sel}><td>${nom}</td><td colspan="3"><span class="sous">pas de fiche dans la campagne en cours</span></td>
     <td><div class="boutons">${BOUTON_PDF(f)}</div></td></tr>`;
   const e = etape(s);
+  const pdfFourni = horsDep(nomDep(s)); // GRETA : fiche fournie en PDF
   const dateEtat = e === 2 ? (s.Soumise_le || s.Finalisee_le) : e === 1 ? s.Lien_envoye_le : null;
-  const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}${e < 2 && !destinataires(s).length ? `<span class="sous retard" title="Ni l'établissement ni ses contacts n'ont d'adresse mail">aucune adresse mail</span>` : ""}`;
+  const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}${e < 2 && !destinataires(s).length ? `<span class="sous retard" title="Ni l'établissement ni ses contacts n'ont d'adresse mail">aucune adresse mail</span>` : ""}${(() => { if (pdfFourni || !window.contactAVerifier) return ""; const n = D.contacts.filter(c => c.Fiche === s.id && window.contactAVerifier(c)).length; return n ? `<span class="sous a-verif" title="Contacts repris du catalogue 2026 qui semblent mal lus : à faire vérifier par l'établissement">${pluriel(n, "contact")} à vérifier</span>` : ""; })()}`;
   const ch = changements(s);
   // GRETA : la fiche est un PDF ; « reçue » = PDF de l'année déposé (bouton « Déposer le PDF »)
-  const pdfFourni = horsDep(nomDep(s));
   const nbCh = pdfFourni ? (e === 2 ? `<span class="pill p-ok">PDF ${esc(CAMP_DE(s))} déposé</span>` : `<span class="sous">PDF de l'an dernier</span>`)
     : ch === null ? `<span class="sous">pas de fiche l'an dernier</span>` : !ch.length ? `<span class="sous vide" title="Aucun changement">—</span>`
     : `<button class="lien-fiche" data-ouvrir="${s.id}" data-vers="changements">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
@@ -368,6 +368,7 @@ function mail(f, relance) {
     "Madame, Monsieur,", "",
     relance ? `Sauf erreur de notre part, nous n'avons pas encore reçu la mise à jour de votre fiche pour le catalogue ${an}.`
             : `Nous préparons l'édition ${an} du catalogue Accompagnement apprentissage. Votre fiche de l'an dernier est déjà remplie dans le formulaire ci-dessous : il suffit de corriger ce qui a changé (formations, contacts, coordonnées, accompagnement) puis de l'envoyer.`,
+    "", "Merci de vérifier en particulier vos contacts (noms, fonctions, téléphones et mails) : ceux qui portent la mention « À vérifier » ont pu être mal repris du catalogue de l'an dernier.",
     "", "Votre fiche : " + lienFiche(f), "",
     lim ? `Merci de nous la retourner avant le ${lim}. Si rien n'a changé, vous pouvez l'envoyer telle quelle.` : "Si rien n'a changé, vous pouvez l'envoyer telle quelle.",
     "Ce lien est personnel : merci de ne pas le diffuser.", "", "Cordialement,", "Le SAIO",

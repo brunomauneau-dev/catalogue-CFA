@@ -146,3 +146,4 @@ table.suivi .mini{min-height:32px;padding:5px 10px}
 @media (max-width:640px){.onglets-p,.sous-onglets{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}.onglets-p button,.sous-onglets button{white-space:nowrap;flex:none}}
 .alerte-txt{color:#B34000}
 #fTexte{min-width:260px}
+.sous.a-verif{color:#8A4B00}
