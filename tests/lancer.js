@@ -218,7 +218,7 @@ test("catalogue", "PDF complet (données fictives riches) : pages, rubriques, ti
     const gr = fiche("GRETA-CFA fictif", "Autre (Greta)"); const b64 = greta.split(",")[1], t = Math.ceil(b64.length / 3);
     definirMorceaux([0, 1, 2].map(k => ({ id: 800 + k, Fiche: gr.id, Rang: 3 - k, Donnees: b64.slice((2 - k) * t, (3 - k) * t) })).reverse().reverse());
     ["Dordogne", "Gironde", "Landes", "Lot-et-Garonne", "Pyrénées-Atlantiques"].forEach(d => { for (let j = 0; j < 3; j++) { const f = fiche(`CFA fictif ${d} ${j + 1}${j === 0 ? " – Campus des métiers et des qualifications" : ""}`, d); forms(f, [["CAP Maçon", "Bâtiment, Travaux publics"], ["CAP Cuisine", "Hôtellerie, Restauration"]]); CO.push({ id: id++, Fiche: f.id, Nom: "Prénom NOM", Fonction: "Accueil" }); AC.push({ id: id++, Fiche: f.id, Action: "Entretien individuel", Cochee: true }); } });
-    const multi = fiche("CFA fictif multi-sites", "Gironde"); forms(multi, ["Site A", "Site B"].flatMap(s => [["CAP Maçon", "Bâtiment, Travaux publics", s], ["CAP Couvreur", "Bâtiment, Travaux publics", s]]));
+    const multi = fiche("CFA fictif multi-sites", "Gironde"); forms(multi, ["Site A", "Site B"].flatMap(s => [["Bac pro Aménagement fictif", "Bâtiment, Travaux publics", s], ["CAP Maçon", "Bâtiment, Travaux publics", s], ["CAP Couvreur", "Bâtiment, Travaux publics", s]]));
     const long = fiche("CFA fictif très complet", "Landes"); forms(long, Array.from({ length: 70 }, (_, i) => ["CAP Formation fictive " + (i + 1), ["Agriculture, Paysage, Forêt", "Industrie, Maintenance"][i % 2]]));
     Object.assign(D, { fiches: F, formations: FO, contacts: CO, accomp: AC });
   });
@@ -232,6 +232,9 @@ test("catalogue", "PDF complet (données fictives riches) : pages, rubriques, ti
   verifier(/\(suite\)/.test(txt), "page de suite avec rappel");
   verifier(/GRETA fictif 1/.test(txt) && /GRETA fictif 2/.test(txt), "les 2 pages du PDF GRETA insérées");
   verifier(/Site A/.test(txt) && /Site B/.test(txt), "regroupement par site");
+  verifier(/^\s*Sommaire\s*$/m.test(txt), "titre « Sommaire »");
+  const siteA = txt.slice(txt.indexOf("> Site A"), txt.indexOf("> Site B")), ordre = ["CAP Couvreur", "CAP Maçon", "Bac pro Aménagement fictif"].map(x => siteA.indexOf(x));
+  verifier(ordre.every((v, i) => v >= 0 && (i === 0 || v > ordre[i - 1])), "formations triées : CAP puis bac pro, ordre alphabétique (" + ordre + ")");
   await sansErreur(p); await p.close();
 });
 

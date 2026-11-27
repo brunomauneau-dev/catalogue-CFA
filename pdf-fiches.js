@@ -475,10 +475,10 @@ function genererPdf(opts, donnees) {
 
   // 3. Sommaire (pages réservées, remplies à la fin quand les numéros sont connus)
   const groupes = opts.groupes;
-  const HAUT_SOMM = 40, ENTETE_RUB = 6 + 7.6 + 7; // sous le bandeau du catalogue (bandeauCatalogue(18) + 2) ; intitulé de rubrique + en-tête du tableau
+  const TITRE_SOMM = 13, HAUT_SOMM = 40, ENTETE_RUB = 6 + 7.6 + 7; // sous le bandeau du catalogue (bandeauCatalogue(18) + 2) ; intitulé de rubrique + en-tête du tableau
   // Mise en page du sommaire : renvoie, pour chaque rubrique, les pages où passent ses lignes (simulation ou tracé)
   const planSommaire = () => {
-    const plan = []; let page = 0, y = HAUT_SOMM;
+    const plan = []; let page = 0, y = HAUT_SOMM + TITRE_SOMM; // première page : titre « Sommaire »
     const saut = () => { page++; y = HAUT_SOMM; };
     for (const [, l] of groupes) {
       const hs = l.map(hLigne), total = ENTETE_RUB + hs.reduce((a, b) => a + b, 0);
@@ -578,6 +578,9 @@ function genererPdf(opts, donnees) {
     // CFA à plusieurs sites : formations regroupées par site (comme dans le catalogue d'origine), sinon par filière
     const parSite = forms.some(x => x.Lieu);
     const fil = new Map(); for (const x of forms) { const k = (parSite ? x.Lieu : null) || x.Filiere || "Autres formations"; if (!fil.has(k)) fil.set(k, []); fil.get(k).push(x); }
+    // dans chaque groupe : CAP (et CAPa), puis bacs pros, puis autres diplômes ; ordre alphabétique ensuite
+    const rang = x => /^CAPa?\b/i.test(x.Intitule || "") ? 0 : /^Bac pro\b/i.test(x.Intitule || "") ? 1 : 2;
+    for (const l of fil.values()) l.sort((a, b) => rang(a) - rang(b) || String(a.Intitule || "").localeCompare(String(b.Intitule || ""), "fr", { numeric: true, sensitivity: "base" }));
     if (!forms.length) texte(main, "Aucune formation renseignée.", { c: COUL.doux });
     for (const [k, l] of fil) {
       place(main, lh(10.5) * 3);
@@ -635,6 +638,7 @@ function genererPdf(opts, donnees) {
     let page = debutSommaire, y = 0;
     const nouvellePage = avecEnTete => { doc.setPage(page); y = bandeauCatalogue(18) + 2; };
     nouvellePage();
+    police("bold", 18); coul(P.section); doc.text("Sommaire", A4.marge, y + 4, { baseline: "top" }); y += TITRE_SOMM;
     const { plan } = planSommaire();
     numeros.forEach((e, r) => {
       const rub = plan[r]; if (!rub) return;
