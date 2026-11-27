@@ -12,6 +12,9 @@ const INTEGRE = window.CATALOGUE_INTEGRE || null;
 const DANS_GRIST = window.parent !== window;
 let D = { fiches: [], formations: [], contacts: [], accomp: [], campagnes: [], pages: [] };
 let CAMP = null, MODE = "derniere", MSG = null, OUVERTES = new Set();
+const BROUILLONS = new Map(); // page -> champs saisis non enregistrés
+const pl = (n, m) => `${n} ${m}${n > 1 ? "s" : ""}`;
+
 const STYLE = "guide"; // habillage du PDF (les autres restent disponibles dans pdf-fiches.js)
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -65,6 +68,18 @@ function parDepartement(fiches) {
   return ordre.map(d => [d, g.get(d).sort((a, b) => String(a.Etablissement).localeCompare(b.Etablissement, "fr", { numeric: true }) || String(a.Site).localeCompare(b.Site, "fr", { numeric: true }))]);
 }
 
+// Points à vérifier avant de générer : fiches exclues (jamais reçues) et fiches sans formation (affichées vides)
+function alertes(toutes, ret) {
+  const out = [];
+  if (MODE === "derniere") {
+    const exclues = toutes.length - ret.length;
+    if (exclues > 0) out.push(`${pl(exclues, "fiche")} sans aucune version reçue ${exclues > 1 ? "sont exclues" : "est exclue"} du catalogue.`);
+  }
+  const vides = ret.filter(f => !horsDep(nomDep(f)) && !D.formations.some(x => x.Fiche === f.id && x.Statut !== "Fermée"));
+  if (vides.length) out.push(`${pl(vides.length, "fiche")} sans formation (fiches en image dans le catalogue 2026, à faire remplir) : ${vides.map(f => esc(f.Etablissement)).join(", ")}.`);
+  return out.map(t => `<p class="bandeau err" style="font-size:14px;margin:8px 0">${t}</p>`).join("");
+}
+
 // ---------- Aperçu d'une page d'information (même mise en forme que le PDF) ----------
 function enLigneHtml(t) {
   return esc(t).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<span class="lien">$1</span>');
@@ -95,9 +110,9 @@ function afficher() {
   const toutes = D.fiches.filter(f => f.Campagne === CAMP.id), ret = fichesRetenues();
   const groupes = parDepartement(ret);
   const lignesDep = groupes.map(([d, l]) => `<div class="diff"><span class="nomgrp">${esc(d)}</span><span class="pill">${l.length} fiche${l.length > 1 ? "s" : ""}</span></div>`).join("");
-  const pages = [...D.pages].sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0));
+  const pages = [...D.pages].sort((a, b) => (a.Ordre || 0) - (b.Ordre || 0)).map(p => ({ ...p, ...(BROUILLONS.get(p.id) || {}), _brouillon: BROUILLONS.has(p.id) }));
   const blocPages = pages.map(p => `<details class="pli" data-pli="${p.id}"${OUVERTES.has(p.id) ? " open" : ""}>
-      <summary><span class="nomgrp">${esc(p.Titre || "Sans titre")}</span>${p.Afficher ? "" : `<span class="pill">masquée</span>`}</summary>
+      <summary><span class="nomgrp">${esc(p.Titre || "Sans titre")}</span>${p.Afficher ? "" : `<span class="pill">masquée</span>`}${p._brouillon ? `<span class="pill modif">non enregistrée</span>` : ""}</summary>
       <div class="corps">
         <div class="form-ech"><label class="champ">Titre<input data-p="${p.id}" data-c="Titre" value="${esc(p.Titre)}"></label>
           <label class="champ">Ordre<input type="number" data-p="${p.id}" data-c="Ordre" value="${esc(p.Ordre)}"></label></div>
@@ -112,7 +127,8 @@ function afficher() {
   app.innerHTML = `${enTeteIntegre}${bandeau}<div class="colonnes">
     <div class="principal">
       <section class="carte"><h2>Fiches du catalogue ${esc(CAMP.Annee)}</h2>
-        <p class="etat">${toutes.length} fiche(s) dans la campagne, dont ${toutes.filter(f => f.Soumise_le || f.Finalisee_le).length} reçue(s). ${ret.length} retenue(s) pour le catalogue.</p>
+        <p class="etat">${pl(toutes.length, "fiche")} dans la campagne, dont ${pl(toutes.filter(f => f.Soumise_le || f.Finalisee_le).length, "reçue")}. ${pl(ret.length, "fiche")} retenue${ret.length > 1 ? "s" : ""} pour le catalogue.</p>
+        ${alertes(toutes, ret)}
         <label class="coche"><input type="radio" name="mode" value="derniere"${MODE === "derniere" ? " checked" : ""}>Fiches pas encore reçues : reprendre leur version de l'an dernier</label>
         <label class="coche"><input type="radio" name="mode" value="actuelle"${MODE === "actuelle" ? " checked" : ""}>Prendre toutes les fiches telles quelles, même non reçues (version de travail)</label>
         ${lignesDep || `<p class="etat">Aucune fiche retenue.</p>`}
@@ -178,7 +194,10 @@ async function generer() {
     opts.documents = await chargerDocuments(opts.groupes.flatMap(([, l]) => l)); // PDF fournis (GRETA)
     const doc = genererPdf(opts, D);
     await telechargerPdf(doc, opts, `catalogue-accompagnement-apprentissage-${CAMP.Annee}.pdf`);
-    MSG = { cl: "ok", txt: `Catalogue généré : ${doc.getNumberOfPages()} pages, ${opts.groupes.reduce((n, [, l]) => n + l.length, 0)} fiches${opts.documents.size ? `, dont ${opts.documents.size} en PDF fourni` : ""}.` };
+    const manquants = opts.groupes.flatMap(([, l]) => l).filter(f => horsDep(nomDep(f)) && !opts.documents.has(f.id));
+    MSG = manquants.length
+      ? { cl: "err", txt: `Catalogue généré (${doc.getNumberOfPages()} pages), mais ${manquants.map(f => `${f.Etablissement} (${DOC_ERREURS.has(f.id) ? "PDF illisible : " + DOC_ERREURS.get(f.id) : "aucun PDF fourni"})`).join(", ")} : la fiche saisie a été utilisée à la place. Déposez son PDF dans le suivi, puis régénérez.` }
+      : { cl: "ok", txt: `Catalogue généré : ${doc.getNumberOfPages()} pages, ${opts.groupes.reduce((n, [, l]) => n + l.length, 0)} fiches${opts.documents.size ? `, dont ${opts.documents.size} en PDF fourni` : ""}.` };
   } catch (err) { MSG = { cl: "err", txt: "Génération impossible : " + (err && err.message ? err.message : err) }; }
   afficher();
 }
@@ -193,7 +212,14 @@ async function appliquer(actions, txt) {
   catch (err) { MSG = { cl: "err", txt: "Refusé : " + (err && err.message ? err.message : err) }; afficher(); }
 }
 app.addEventListener("toggle", e => { const d = e.target; if (d.dataset && d.dataset.pli) d.open ? OUVERTES.add(+d.dataset.pli) : OUVERTES.delete(+d.dataset.pli); }, true);
-racine.addEventListener("input", e => { const el = e.target; if (el.dataset && el.dataset.p && (el.dataset.c === "Texte" || el.dataset.c === "Titre")) majApercu(el.dataset.p); });
+racine.addEventListener("input", e => {
+  const el = e.target; if (!el.dataset || !el.dataset.p) return;
+  const id = +el.dataset.p, b = BROUILLONS.get(id) || {};
+  b[el.dataset.c] = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value; BROUILLONS.set(id, b);
+  if (el.dataset.c === "Texte" || el.dataset.c === "Titre") majApercu(el.dataset.p);
+  const sum = el.closest("details") && el.closest("details").querySelector("summary");
+  if (sum && !sum.querySelector(".pill.modif")) sum.insertAdjacentHTML("beforeend", `<span class="pill modif">non enregistrée</span>`);
+});
 racine.addEventListener("change", e => {
   const el = e.target;
   if (el.id === "choixCampagne") { CAMP = D.campagnes.find(c => c.id === +el.value); MSG = null; return afficher(); }
@@ -221,11 +247,13 @@ racine.addEventListener("click", e => {
   if (d.enregistrer) {
     const id = +d.enregistrer, champs = {};
     document.querySelectorAll(`[data-p="${id}"]`).forEach(el => { champs[el.dataset.c] = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value; });
+    BROUILLONS.delete(id);
     if (!DANS_GRIST) { Object.assign(D.pages.find(p => p.id === id), champs); MSG = { cl: "ok", txt: "Démonstration : page enregistrée." }; return afficher(); }
     return appliquer([["UpdateRecord", "Pages_catalogue", id, champs]], "Page enregistrée.");
   }
   if (d.supprimer) {
     if (b.dataset.confirme !== "1") { b.dataset.confirme = "1"; b.textContent = "Confirmer la suppression"; return; }
+    BROUILLONS.delete(+d.supprimer);
     if (!DANS_GRIST) { D.pages = D.pages.filter(p => p.id !== +d.supprimer); return afficher(); }
     return appliquer([["RemoveRecord", "Pages_catalogue", +d.supprimer]], "Page supprimée.");
   }
