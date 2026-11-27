@@ -177,7 +177,7 @@ function afficher() {
     <button role="tab" data-dep="" aria-selected="${!FILTRE.dep}">Toutes les fiches <span>${lignes.length}</span></button>
     ${deps.map(d => `<button role="tab" data-dep="${esc(d)}" aria-selected="${FILTRE.dep === d}">${esc(d)} <span>${nbDep(d)}</span></button>`).join("")}</div>`;
   const filtres = `<div class="filtres">
-    <input id="fTexte" placeholder="Rechercher un établissement" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
+    <input id="fTexte" placeholder="Rechercher un établissement ou une ville" aria-label="Rechercher" value="${esc(FILTRE.texte)}">
 
     ${FILTRE.dep ? "" : `<span class="boutons" style="margin-left:auto"><button class="mini" data-tout-dep="ouvrir">Tout déplier</button><button class="mini" data-tout-dep="replier">Tout replier</button></span>`}</div>`;
   // Récapitulatif de la campagne (marge de droite) : chaque compte est un filtre
@@ -193,6 +193,7 @@ function afficher() {
       <div class="barre" role="progressbar" aria-valuemin="0" aria-valuemax="${tot}" aria-valuenow="${recues}"><i style="width:${tot ? Math.round(100 * recues / tot) : 0}%"></i></div>
       <ul>${item("", "Toutes les fiches", tot)}${item("0", "À envoyer", n("0"))}${item("1", "Envoyées, en attente", n("1"))}${item("2", "Reçues", recues)}
         ${item("ch", "Avec changements", nbChg())}${item("retard", "Sans réponse depuis 7 j", nbRetard(), nbRetard() ? "alerte" : "")}</ul>
+      ${!camp.Date_limite ? `<p class="recap-date"><b class="alerte-txt">Date limite non renseignée</b><br>Les mails partent sans échéance (colonne Date_limite de la campagne).</p>` : ""}
       ${camp.Date_limite ? `<p class="recap-date">Date limite : ${esc(new Date(camp.Date_limite * 1000).toLocaleDateString("fr-FR"))}<br><b>${jours > 0 ? "J-" + jours : jours === 0 ? "Aujourd'hui" : "Dépassée de " + -jours + " j"}</b></p>` : ""}
     </aside>`;
   }
@@ -202,7 +203,7 @@ function afficher() {
     if (FILTRE.retard && !(l.s && enRetard(l.s))) return false;
     if (FILTRE.ch && !chg(l)) return false;
     if (FILTRE.dep && (l.f.Departement || "Sans département") !== FILTRE.dep) return false;
-    if (FILTRE.texte && !norm(l.f.Etablissement + " " + l.f.Site).includes(norm(FILTRE.texte))) return false;
+    if (FILTRE.texte && !norm([l.f.Etablissement, l.f.Site, l.f.Ville].join(" ")).includes(norm(FILTRE.texte))) return false;
     return true;
   };
   const vis = lignes.filter(garde).sort((a, b) => ordreDep(a.f.Departement || "Sans département", b.f.Departement || "Sans département") || String(a.f.Etablissement).localeCompare(b.f.Etablissement, "fr", { numeric: true }));
@@ -298,7 +299,7 @@ function ligne(f, s, close) {
     <td><div class="boutons">${BOUTON_PDF(f)}</div></td></tr>`;
   const e = etape(s);
   const dateEtat = e === 2 ? (s.Soumise_le || s.Finalisee_le) : e === 1 ? s.Lien_envoye_le : null;
-  const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}`;
+  const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}${e < 2 && !destinataires(s).length ? `<span class="sous retard" title="Ni l'établissement ni ses contacts n'ont d'adresse mail">aucune adresse mail</span>` : ""}`;
   const ch = changements(s);
   // GRETA : la fiche est un PDF ; « reçue » = PDF de l'année déposé (bouton « Déposer le PDF »)
   const pdfFourni = horsDep(nomDep(s));
@@ -348,6 +349,11 @@ function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison
 
 // ---------- Mails (préparés dans la messagerie, jamais envoyés automatiquement) ----------
 function lienFiche(f) { return (CAMP.URL_formulaire || "") + (String(CAMP.URL_formulaire || "").includes("?") ? "&" : "?") + "Code_=" + encodeURIComponent(f.Code || ""); }
+// Destinataires : le mail de l'établissement, à défaut ceux de ses contacts (jamais affichés ici, seulement mis dans le mail)
+function destinataires(f) {
+  if (String(f.Mail || "").trim()) return [String(f.Mail).trim()];
+  return [...new Set(D.contacts.filter(c => c.Fiche === f.id).flatMap(c => String(c.Mail || "").split("/")).map(m => m.trim()).filter(m => m.includes("@")))];
+}
 function mail(f, relance) {
   const an = CAMP.Annee, lim = CAMP.Date_limite ? new Date(CAMP.Date_limite * 1000).toLocaleDateString("fr-FR") : "";
   const objet = `${relance ? "Relance - " : ""}Catalogue Accompagnement apprentissage ${an} - mise à jour de votre fiche - ${f.Etablissement || ""}`;
@@ -366,13 +372,13 @@ function mail(f, relance) {
     lim ? `Merci de nous la retourner avant le ${lim}. Si rien n'a changé, vous pouvez l'envoyer telle quelle.` : "Si rien n'a changé, vous pouvez l'envoyer telle quelle.",
     "Ce lien est personnel : merci de ne pas le diffuser.", "", "Cordialement,", "Le SAIO",
   ].join("\n");
-  return `mailto:${encodeURIComponent(f.Mail || "")}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
+  return `mailto:${destinataires(f).map(encodeURIComponent).join(",")}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(corps)}`;
 }
 
 // ---------- Nouvelle campagne ----------
 // Recopie les fiches dans une nouvelle campagne (inactive tant qu'on ne l'active pas) :
 // nouveaux codes, lien vers la fiche d'origine (pour la comparaison), formations fermées non reprises.
-const SUIVI = ["Code", "Campagne", "Fiche_precedente", "Lien_envoye_le", "Ouverte_le", "Soumise_le", "Finalisee_le", "Prochaine_action"];
+const SUIVI = ["Code", "Campagne", "Fiche_precedente", "Lien_envoye_le", "Ouverte_le", "Soumise_le", "Finalisee_le", "Prochaine_action", "PDF_depose", "Document_fourni", "Code_actif"];
 let COLONNES = null; // colonnes de données (hors formules) par table, lues dans les métadonnées
 
 async function colonnesDonnees() {
@@ -403,7 +409,7 @@ function panneau() {
     <div class="form-ech">
       <label class="champ">Année<input id="nAnnee" value="${esc(an)}"></label>
       <label class="champ">Date limite de retour<input type="date" id="nLimite"></label></div>
-    <p class="etat">${nbF} fiche(s) dans la campagne ${esc(src.Annee)}, dont ${nbFin} reçue(s). Chaque fiche est reprise dans sa dernière version reçue ;
+    <p class="etat">${pluriel(nbF, "fiche")} dans la campagne ${esc(src.Annee)}, dont ${nbFin} reçue${nbFin > 1 ? "s" : ""}. Chaque fiche est reprise dans sa dernière version reçue ;
       les formations « Fermée » ne sont pas reprises, les « Nouvelle » deviennent « Maintenue ».</p>
     <p class="bandeau err" style="font-size:15px">La nouvelle campagne devient aussitôt la campagne en cours : la campagne ${esc(src.Annee)} est close
       et ses liens cessent de fonctionner pour les établissements.</p>
@@ -416,7 +422,7 @@ async function creerCampagne() {
   if (!annee) { MSG = { cl: "err", txt: "Indiquez l'année de la campagne." }; return afficher(); }
   if (D.campagnes.some(c => String(c.Annee).trim() === annee)) { MSG = { cl: "err", txt: `La campagne ${annee} existe déjà.` }; return afficher(); }
   const src = sources(CAMP);
-  if (!DANS_GRIST) { MSG = { cl: "ok", txt: `Démonstration : la campagne ${annee} serait créée avec ${src.length} fiche(s).` }; PANNEAU = null; return afficher(); }
+  if (!DANS_GRIST) { MSG = { cl: "ok", txt: `Démonstration : la campagne ${annee} serait créée avec ${pluriel(src.length, "fiche")}.` }; PANNEAU = null; return afficher(); }
   try {
     const cols = await colonnesDonnees();
     const garder = (table, r, exclure) => { const o = {}; for (const c of cols[table] || []) if (!exclure.includes(c) && c in r) o[c] = r[c]; return o; };
@@ -440,7 +446,7 @@ async function creerCampagne() {
     if (enfants.length) await grist.docApi.applyUserActions(enfants);
     await grist.docApi.applyUserActions([...D.campagnes, { id: campId }].map(c => ["UpdateRecord", "Campagnes", c.id, { Active: c.id === campId }]));
     PANNEAU = null;
-    MSG = { cl: "ok", txt: `Campagne ${annee} créée et lancée : ${ids.length} fiche(s) reprises. La campagne précédente est close.` };
+    MSG = { cl: "ok", txt: `Campagne ${annee} créée et lancée : ${pluriel(ids.length, "fiche")} reprise${ids.length > 1 ? "s" : ""}. La campagne précédente est close.` };
     CAMP = { id: campId };
     await charger();
   } catch (err) { MSG = { cl: "err", txt: "Création interrompue : " + (err && err.message ? err.message : err) }; afficher(); }
@@ -462,10 +468,12 @@ async function envoyer(f, relance) {
   if (!horsDep(nomDep(f)) && !CAMP.URL_formulaire) { MSG = { cl: "err", txt: "Renseignez l'adresse du formulaire (colonne URL_formulaire de la campagne)." }; return afficher(); }
   if (!horsDep(nomDep(f)) && !f.Code) { MSG = { cl: "err", txt: "Cette fiche n'a pas de code : impossible de créer son lien." }; return afficher(); }
   window.open(mail(f, relance), "_blank");
+  const dest = destinataires(f);
   const auj = Math.floor(Date.now() / 86400000) * 86400;
   const a = [["AddRecord", "Correspondances", null, { Fiche: f.id, Date: auj, Type: "Mail envoyé", Objet: relance ? "Relance" : "Envoi du lien du formulaire" }]];
   if (!relance) a.push(["UpdateRecord", "Fiches", f.id, { Lien_envoye_le: maintenant() }]);
-  await appliquer(a, `Mail préparé pour ${f.Etablissement} : vérifiez-le et envoyez-le depuis votre messagerie.`);
+  await appliquer(a, dest.length ? `Mail préparé pour ${f.Etablissement}${String(f.Mail || "").trim() ? "" : ` (adressé ${dest.length > 1 ? `aux ${dest.length} adresses des contacts` : "à l'adresse du contact"} de la fiche, faute de mail de l'établissement)`} : vérifiez-le et envoyez-le depuis votre messagerie.`
+    : `Mail préparé pour ${f.Etablissement}, SANS destinataire : la fiche n'a aucune adresse mail. Ajoutez le destinataire dans votre messagerie avant d'envoyer.`);
 }
 
 // ---------- Interactions ----------

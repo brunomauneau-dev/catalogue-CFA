@@ -144,3 +144,5 @@ table.suivi .mini{min-height:32px;padding:5px 10px}
 .sous.vide{color:#9AA3AF}
 /* Petits écrans : onglets sur une ligne, défilables */
 @media (max-width:640px){.onglets-p,.sous-onglets{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin}.onglets-p button,.sous-onglets button{white-space:nowrap;flex:none}}
+.alerte-txt{color:#B34000}
+#fTexte{min-width:260px}
