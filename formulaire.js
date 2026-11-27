@@ -227,7 +227,10 @@ function afficher() {
   const ga = new Map([...grouper(ETAT.accomp, "Groupe")].sort(([a], [b]) => rangAcc(a) - rangAcc(b)));
   const groupes = [...ga].map(([g, items]) => {
     const vis = items.filter(([l]) => !l._suppr);
-    const corps = vis.map(([l, i]) => `<label class="coche"><input type="checkbox" data-coche="${i}"${l.Cochee ? " checked" : ""}>${esc(l.Action)}${!l.id ? ` <span class="pill new">Ajoutée</span>` : ""}</label>`).join("");
+    // case : l'action figure ou non au catalogue ; texte modifiable (ex. mettre à jour une date)
+    const corps = vis.map(([l, i]) => `<div class="action-ligne${l.Cochee ? "" : " decochee"}"><input type="checkbox" data-coche="${i}"${l.Cochee ? " checked" : ""} aria-label="Afficher cette action dans le catalogue">
+      <label class="champ action-texte${changeChamp("accomp", l, "Action") ? " change" : ""}"><textarea rows="1" data-t="accomp" data-i="${i}" data-c="Action" aria-label="Texte de l'action">${esc(l.Action)}</textarea><span class="invalide"></span></label>
+      ${!l.id ? `<span class="pill new">Ajoutée</span>` : ""}</div>`).join("");
     return pli("acc:" + g, g, `<span class="pill">${vis.filter(([l]) => l.Cochee).length}/${vis.length} cochées</span>`, corps);
   }).join("");
   const blocAccomp = `<section class="carte"><div class="entete"><h2>Modalités d'accompagnement</h2>

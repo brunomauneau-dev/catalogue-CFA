@@ -73,9 +73,9 @@ const libEtape = n => ETATS_FICHE[n] || "";
 
 // Appariement un pour un : d'abord les éléments identiques, puis par clé (chaque élément 2026 ne sert qu'une fois).
 // Évite les faux écarts quand une même formation est proposée sur plusieurs sites, ou deux contacts ont la même fonction.
-function apparier(avant, apres, identique, proche) {
+function apparier(avant, apres, ...regles) { // règles de la plus stricte à la plus souple
   const libres = new Set(avant), paires = new Map();
-  for (const regle of [identique, proche]) for (const n of apres) {
+  for (const regle of regles) for (const n of apres) {
     if (paires.has(n)) continue;
     const o = [...libres].find(x => regle(x, n));
     if (o) { paires.set(n, o); libres.delete(o); }
@@ -120,11 +120,17 @@ function changements(f) {
   }
   for (const o of co.restants) out.push({ type: "Contact", lib: "Retiré · " + etiq(o), avant: o.Nom });
   const ac0 = de("accomp", prec.id), ac1 = de("accomp", f.id);
-  const ac = apparier(ac0, ac1, (a, b) => norm(a.Action) === norm(b.Action) && !!a.Cochee === !!b.Cochee, (a, b) => norm(a.Action) === norm(b.Action));
+  // une action reprise ne peut être que cochée, décochée ou réécrite : une action restée sans correspondance
+  // dans la même catégorie est donc une action réécrite (appariement dans l'ordre de la fiche)
+  const ac = apparier(ac0, ac1, (a, b) => norm(a.Action) === norm(b.Action) && !!a.Cochee === !!b.Cochee, (a, b) => norm(a.Action) === norm(b.Action),
+    (a, b) => b.id && norm(a.Groupe) === norm(b.Groupe));
   for (const n of ac1) {
     const o = ac.paires.get(n);
     if (!o) out.push({ type: "Accompagnement", lib: "Nouvelle action", apres: n.Action });
-    else if (!!o.Cochee !== !!n.Cochee) out.push({ type: "Accompagnement", lib: n.Cochee ? "Cochée" : "Décochée", apres: n.Action });
+    else {
+      if (norm(o.Action) !== norm(n.Action)) out.push({ type: "Accompagnement", lib: "Action modifiée", avant: o.Action, apres: n.Action });
+      if (!!o.Cochee !== !!n.Cochee) out.push({ type: "Accompagnement", lib: n.Cochee ? "Cochée" : "Décochée", apres: n.Action });
+    }
   }
   for (const o of ac.restants) out.push({ type: "Accompagnement", lib: "Retirée", avant: o.Action });
   return out;

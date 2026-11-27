@@ -60,6 +60,10 @@ modalités d'accompagnement). Les formations fermées n'apparaissent pas.
 Pages d'information : table `Pages_catalogue` (Ordre, Titre, Texte, Afficher), modifiables dans le widget ;
 mise en forme : `**gras**`, `- ` liste, `## ` intertitre, `[texte](adresse)`.
 Colonne facultative `Presentation_accompagnement` dans `Fiches` (texte d'introduction de l'accompagnement).
+Modalités d'accompagnement (table `Accompagnement`) : saisie libre, rangée par catégorie (colonne `Groupe`, dans l'ordre du
+parcours du jeune). Le CFA coche les actions à faire figurer au catalogue, peut réécrire le texte d'une action reprise
+(ex. une date) et en ajouter de nouvelles en choisissant leur catégorie. La comparaison signale « Action modifiée »,
+« Cochée / Décochée » et « Nouvelle action ».
 
 Habillage du PDF : « guide » (une couleur par département et un onglet en bord de page ; deux autres habillages
 restent disponibles dans `pdf-fiches.js`). Page de garde : un PDF A4 déposé dans l'onglet Catalogue, mémorisé pour

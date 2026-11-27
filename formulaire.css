@@ -75,3 +75,9 @@ button{font:inherit}
 .lieu-ligne .invalide:empty{display:none}
 .pill.a-verifier{background:#FFF4E5;color:#8A4B00;border:1px solid #F3C98B}
 .note-verif{margin:0 0 10px;font-size:13px;color:#8A4B00;background:#FFF8EE;border:1px solid #F3D9B5;border-radius:6px;padding:8px 10px}
+.action-ligne{display:flex;gap:10px;align-items:flex-start;margin:6px 0}
+.action-ligne>input[type=checkbox]{width:20px;height:20px;margin:9px 0 0;flex:none}
+.action-ligne .action-texte{flex:1;margin:0}
+.action-ligne textarea{min-height:38px;padding:7px 10px;font:inherit;font-size:14.5px;resize:vertical;field-sizing:content}
+.action-ligne.decochee textarea{color:#6B7280;text-decoration:line-through;background:#F7F7F9}
+.action-ligne .invalide:empty{display:none}
