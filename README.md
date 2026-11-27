@@ -3,6 +3,16 @@
 Outil du SAIO pour la mise à jour annuelle des fiches de renseignement des CFA
 qui composent le catalogue « Accompagnement apprentissage ».
 
+### Présentation « page du catalogue » (établissement)
+
+Un établissement qui ouvre son lien voit sa fiche telle qu'elle paraîtra dans le catalogue (couleur du département,
+colonne des coordonnées et contacts, formations, modalités d'accompagnement) et la corrige en cliquant sur les textes.
+- En tête : « Rien n'a changé, je la confirme » (envoi en un clic, après confirmation).
+- Modifications en jaune, ajouts en vert, retraits barrés avec « ↶ remettre » ; formations ajoutées depuis la liste officielle.
+- Enregistrement automatique 1,5 s après chaque saisie ; « Envoyer ma fiche » demande confirmation et récapitule les changements.
+- « Autre chose à signaler ? » : message libre au SAIO (colonne facultative `Fiches.Message_CFA`, affichée dans le suivi).
+- Lien « Préférez-vous un formulaire classique ? » vers le formulaire par rubriques (utilisé aussi par le SAIO dans le suivi).
+
 ## Formulaire de l'établissement (widget Grist)
 
 `index.html` (+ `formulaire.js`, `formulaire.css`) : formulaire prérempli que l'établissement ouvre

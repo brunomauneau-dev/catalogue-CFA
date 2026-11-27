@@ -314,7 +314,8 @@ function ligne(f, s, close) {
     : `<button class="lien-fiche" data-ouvrir="${s.id}" data-vers="changements">${ch.length} changement${ch.length > 1 ? "s" : ""}</button>`;
   const der = echanges(s)[0];
   const derBrut = der ? `${esc(der.Type)} · ${dateFr(der.Date)}` : s.Soumise_le ? `Reçue · ${dateFr(s.Soumise_le)}` : s.Lien_envoye_le ? `Lien envoyé · ${dateFr(s.Lien_envoye_le)}` : "";
-  const derTxt = `<button class="lien-fiche lien-doux" data-ouvrir="${s.id}" data-vers="echanges" title="Voir les échanges et en noter un">${derBrut || `<span class="ajout-ech">+ Noter un échange</span>`}</button>`;
+  const msg = String(s.Message_CFA || "").trim();
+  const derTxt = `<button class="lien-fiche lien-doux" data-ouvrir="${s.id}" data-vers="echanges" title="Voir les échanges et en noter un">${derBrut || `<span class="ajout-ech">+ Noter un échange</span>`}</button>${msg ? `<button class="lien-fiche msg-cfa" data-ouvrir="${s.id}" data-vers="echanges" title="${esc(msg)}">💬 message de l’établissement</button>` : ""}`;
   let actions = "";
   if (!close) {
     if (pdfFourni) { // GRETA : on demande le PDF, puis on le dépose tel qu'il est reçu
@@ -344,7 +345,7 @@ function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison
   return `<div class="grille-detail">
     <section id="sec-changements"><h2>${horsDep(nomDep(f)) ? "Document" : "Changements par rapport à l'an dernier"}</h2>${diffs}
       <label class="champ">Prochaine action<input data-prochaine="${f.id}" value="${esc(f.Prochaine_action || "")}" placeholder="Ex. : relancer le 20/01"></label></section>
-    <section id="sec-echanges"><h2>Correspondances</h2>${ech}
+    <section id="sec-echanges"><h2>Correspondances</h2>${String(f.Message_CFA || "").trim() ? `<div class="msg-bloc"><b>💬 Message de l’établissement</b><p>${esc(f.Message_CFA)}</p></div>` : ""}${ech}
       <div class="form-ech">
         <label class="champ">Date<input type="date" id="eDate" value="${new Date().toISOString().slice(0, 10)}"></label>
         <label class="champ">Type<select id="eType"><option>Mail envoyé</option><option>Mail reçu</option><option>Appel</option><option>Note</option></select></label>
