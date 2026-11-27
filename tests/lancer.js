@@ -249,6 +249,27 @@ test("catalogue", "page d'information : conventions de mise en forme (aperçu et
   await sansErreur(p); await p.close();
 });
 
+test("catalogue", "fiche : adresse longue sur une ligne, ponctuation jamais en début de ligne, texte dans la colonne", async () => {
+  const p = await page("catalogue.html");
+  const MAIL = "prenom.nomfictif@formation-fictive-cfa.fr"; // longueur des adresses réelles les plus longues
+  await p.evaluate(MAIL => {
+    const D = window.CATALOGUE_DEMO, f = D.fiches[0];
+    f.Mail = MAIL; D.contacts.push({ id: 900, Fiche: f.id, Nom: "Prénom NOM", Fonction: "Accueil", Mail: MAIL });
+    // actions de longueurs croissantes : sans espace insécable, l'une d'elles rejetterait « : » ou « ; » en début de ligne
+    for (let i = 0; i < 24; i++) D.accomp.push({ id: 900 + i + 1, Fiche: f.id, Cochee: true, Action: "Entretien " + "individuel ".repeat(i % 12) + "fictif" + "s".repeat(i % 3) + " : suite du texte ; fin « Pass fictif »" });
+  }, MAIL);
+  const [dl] = await Promise.all([p.waitForEvent("download", { timeout: 60000 }), p.click("#generer")]);
+  const fic = path.join(SORTIE, "catalogue-typo.pdf"); await dl.saveAs(fic);
+  const txt = execFileSync("pdftotext", [fic, "-"]).toString();
+  verifier(txt.split(MAIL).length >= 3, "adresse mail affichée entière (fiche et contact)");
+  const debuts = txt.split("\n").filter(l => /^[:;?!»]/.test(l.trim()));
+  verifier(!debuts.length, "ponctuation en début de ligne : " + debuts.slice(0, 3).join(" | "));
+  verifier(!/\u00a0/.test(txt), "espaces insécables dessinés en espaces simples");
+  const bord = execFileSync("python3", ["-c", "import pdfplumber,sys\nmm=72/25.4\nwith pdfplumber.open(sys.argv[1]) as d:\n print(max((c['x1'] for p in d.pages for c in p.chars if 40*mm<c['top']<275*mm and 80*mm<c['x0']<190*mm), default=0)/mm)", fic]).toString();
+  verifier(+bord <= 196.5, "texte dans la colonne (bord droit " + (+bord).toFixed(1) + " mm)");
+  await sansErreur(p); await p.close();
+});
+
 // ---------------------------------------------------------------- affichage : 3 largeurs, sans débordement
 for (const [fichier, nom, avant] of [["index.html", "formulaire"], ["suivi.html", "suivi"], ["suivi.html", "suivi-catalogue", async p => { await p.click('[data-onglet="catalogue"]'); await p.waitForTimeout(400); }], ["catalogue.html", "catalogue"]]) {
   for (const [lib, l, h] of LARGEURS) test("affichage", `${nom} · ${lib} (${l} px) : pas de débordement horizontal`, async () => {

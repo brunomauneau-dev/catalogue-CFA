@@ -133,6 +133,8 @@ const REMPL = { "œ": "oe", "Œ": "OE", "’": "'", "‘": "'", "“": "\"", "�
 const OK_WINANSI = new Set([..."€‚ƒ„†‡ˆ‰Š‹ŒŽ˜™š›œžŸ•"]);
 const net = s => [...String(s ?? "").normalize("NFC")].map(c => REMPL[c] ?? c).join("").split("").map(c => (c.charCodeAt(0) < 256 || OK_WINANSI.has(c) ? c : "?")).join("");
 
+// Espace insécable avant « : ; ? ! » » et après « « » : la ponctuation ne commence jamais une ligne
+const fr = s => net(s).replace(/ ([:;?!»])/g, "\u00a0$1").replace(/« /g, "«\u00a0");
 const A4 = { l: 210, h: 297, marge: 15, bas: 280 };
 const COUL = { bleu: [0, 0, 145], bleuPale: [234, 241, 251], gris: [241, 244, 249], texte: [17, 24, 39], doux: [75, 85, 99], blanc: [255, 255, 255] };
 const lh = (taille, inter = 1.4) => taille * 0.3528 * inter; // interligne 1,4 : texte aéré
@@ -210,6 +212,18 @@ function genererPdf(opts, donnees) {
   };
 
   // Colonne de texte qui passe à la page suivante (pages partagées entre colonnes d'une même fiche).
+  // Découpage en lignes qui respecte les espaces insécables de fr() (jsPDF ne connaît pas leur largeur) ; elles sont dessinées en espaces simples
+  const sp = t => t.replace(/\u00a0/g, " ");
+  function couper(s, w) {
+    const out = []; let cur = "";
+    for (const mot of s.split(" ")) {
+      const essai = cur ? cur + " " + mot : mot;
+      if (!cur || doc.getTextWidth(sp(essai)) <= w) { cur = essai; continue; }
+      out.push(cur); cur = mot;
+    }
+    if (cur) out.push(cur);
+    return out.flatMap(l => doc.getTextWidth(sp(l)) > w ? doc.splitTextToSize(sp(l), w) : [sp(l)]); // mot plus long que la colonne
+  }
   function colonne(x, w, y, ctx) { return { x, w, y, ctx, idx: 0 }; }
   let SEC = false; // mesure à blanc (hauteur d'un bloc avant de dessiner son fond)
   const mesurer = (col, fn) => { const c = { ...col, y: 0, sim: true }; SEC = true; try { fn(c); } finally { SEC = false; } return c.y; };
@@ -222,9 +236,15 @@ function genererPdf(opts, donnees) {
     col.y = col.ctx.ySuite;
     if (col.fond) col.fond();
   }
-  function texte(col, s, { taille = 10, style = "normal", c = COUL.texte, retrait = 0, puce = null, apres = 0 } = {}) {
+  function texte(col, s, { taille = 10, style = "normal", c = COUL.texte, retrait = 0, puce = null, apres = 0, adresse = false } = {}) {
     police(style, taille); coul(c);
-    const ls = doc.splitTextToSize(net(s), col.w - retrait);
+    let ls;
+    if (adresse) { // mail ou site : police réduite pour tenir sur une ligne, sinon coupure après « @ » ou un « / » (jamais en plein mot)
+      const v = net(s).trim();
+      while (taille > 8 && doc.getTextWidth(v) > col.w - retrait) police(style, taille -= 0.25);
+      const k = doc.getTextWidth(v) > col.w - retrait ? Math.max(v.indexOf("@"), v.indexOf("/")) : -1;
+      ls = k > 0 ? [v.slice(0, k + 1), v.slice(k + 1)] : doc.splitTextToSize(v, col.w - retrait);
+    } else ls = couper(fr(s), col.w - retrait);
     ls.forEach((l, i) => {
       place(col, lh(taille));
       if (!SEC && puce && i === 0) doc.text(puce, col.x + retrait - 3.5, col.y, { baseline: "top" });
@@ -246,15 +266,15 @@ function genererPdf(opts, donnees) {
   }
   function enLigne(col, s, retrait, puce, { taille = 10.5, gras: tousGras = false, c = null } = {}) {
     const hl = lh(taille, 1.4), mots = [];
-    for (const m of net(s).split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\))/)) {
+    for (const m of fr(s).split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\))/)) {
       if (!m) continue;
       let t = m, gras = false, url = null;
       if (/^\*\*.*\*\*$/.test(m)) { t = m.slice(2, -2); gras = true; }
       const lien = m.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/); if (lien) { t = lien[1]; url = lien[2]; }
-      for (const p of t.split(/(\s+)/)) if (p) mots.push({ t: p, gras: gras || tousGras, url, c });
+      for (const p of t.split(/([ \t\n]+)/)) if (p) mots.push({ t: p, gras: gras || tousGras, url, c });
     }
     let ligne = [], larg = 0, premiere = true;
-    const largeur = m => { police(m.gras ? "bold" : "normal", taille); return doc.getTextWidth(m.t); };
+    const largeur = m => { police(m.gras ? "bold" : "normal", taille); return doc.getTextWidth(sp(m.t)); };
     const vider = () => {
       while (ligne.length && /^\s+$/.test(ligne[ligne.length - 1].t)) ligne.pop();
       place(col, hl);
@@ -263,8 +283,8 @@ function genererPdf(opts, donnees) {
       if (!SEC && puce === "case" && premiere) { doc.setDrawColor(...COUL.texte); doc.setLineWidth(0.35); doc.rect(x - 5.2, col.y + 0.4, 3.2, 3.2); }
       for (const m of ligne) {
         police(m.gras ? "bold" : "normal", taille); coul(m.url ? COUL.bleu : (m.c || COUL.texte));
-        const w = doc.getTextWidth(m.t);
-        if (!SEC) doc.text(m.t, x, col.y, { baseline: "top" });
+        const w = doc.getTextWidth(sp(m.t));
+        if (!SEC) doc.text(sp(m.t), x, col.y, { baseline: "top" });
         if (!SEC && m.url && !/^\s+$/.test(m.t)) { doc.link(x, col.y, w, hl, { url: m.url }); doc.setDrawColor(...COUL.bleu); doc.setLineWidth(0.2); doc.line(x, col.y + lh(taille) * 0.85, x + w, col.y + lh(taille) * 0.85); }
         x += w;
       }
@@ -329,10 +349,10 @@ function genererPdf(opts, donnees) {
   }
   function boite(col, fond, bord, lignes, opts2) { // encadré : fond, filet à gauche, texte
     const pad = 3.2, sous = c => { const s = { ...c, x: c.x + pad + 1.2, w: c.w - 2 * pad - 1.2 }; lignesRiches(s, lignes, opts2); c.y = s.y; };
-    const h = mesurer(col, sous) + 2 * pad;
+    const h = mesurer(col, sous) + 2 * pad - 2.2; // sans l'espace laissé sous le dernier paragraphe
     place(col, Math.min(h, A4.bas - 30));
     if (!SEC) { doc.setFillColor(...fond); doc.roundedRect(col.x, col.y, col.w, h, 1.5, 1.5, "F"); doc.setFillColor(...bord); doc.rect(col.x, col.y, 1.2, h, "F"); }
-    const c = { ...col, x: col.x + pad + 1.2, w: col.w - 2 * pad - 1.2, y: col.y + pad }; sous2(c, lignes, opts2); col.y = c.y + pad + 3; col.idx = c.idx;
+    const c = { ...col, x: col.x + pad + 1.2, w: col.w - 2 * pad - 1.2, y: col.y + pad }; const y0 = col.y, i0 = col.idx; sous2(c, lignes, opts2); col.y = c.idx === i0 ? y0 + h + 3 : c.y + pad + 3; col.idx = c.idx;
   }
   const sous2 = (c, lignes, o) => lignesRiches(c, lignes, o);
   function pageInfo(p) {
@@ -527,7 +547,7 @@ function genererPdf(opts, donnees) {
       }
       if (suite) {
         police("bold", 11); coul(opts.style === "moderne" ? COUL.blanc : GUIDE ? C0 : P.accent); doc.text(doc.splitTextToSize(titre + " (suite)", A4.l - 2 * A4.marge - 30)[0], A4.marge, 6, { baseline: "top" });
-        if (GUIDE) { doc.setFillColor(...C0); doc.rect(A4.marge, 14, A4.l - 2 * A4.marge - 6, 0.6, "F"); fondCote(20); }
+        if (GUIDE) { doc.setFillColor(...C0); doc.rect(A4.marge, 14, A4.l - 2 * A4.marge, 0.6, "F"); fondCote(20); }
       }
       else {
         police("normal", 8.5); coul(opts.style === "moderne" ? COUL.blanc : COUL.doux); doc.text(net(dep), A4.marge, 5, { baseline: "top" });
@@ -537,10 +557,10 @@ function genererPdf(opts, donnees) {
         coul(opts.style === "moderne" ? COUL.blanc : GUIDE ? C0 : P.accent);
         lT.forEach((l, j) => doc.text(l, A4.marge, 10.5 + j * 5.6, { baseline: "top" }));
         police("normal", 10.5); coul(opts.style === "moderne" ? COUL.blanc : COUL.texte); doc.text(net(f.Site || ""), A4.marge, lT.length > 1 ? 22 : 19.5, { baseline: "top" });
-        if (opts.style !== "moderne") { doc.setFillColor(...(GUIDE ? C0 : P.accent)); doc.rect(A4.marge, 27, A4.l - 2 * A4.marge - (GUIDE ? 6 : 0), GUIDE ? 1.2 : 0.6, "F"); }
+        if (opts.style !== "moderne") { doc.setFillColor(...(GUIDE ? C0 : P.accent)); doc.rect(A4.marge, 27, A4.l - 2 * A4.marge, GUIDE ? 1.2 : 0.6, "F"); }
       }
       if (num) {
-        if (GUIDE) { doc.setFillColor(...C0); doc.roundedRect(A4.l - A4.marge - 24, 3, 18, 7, 1.5, 1.5, "F"); police("bold", 10); coul(COUL.blanc); doc.text(num, A4.l - A4.marge - 15, 4.4, { baseline: "top", align: "center" }); }
+        if (GUIDE) { doc.setFillColor(...C0); doc.roundedRect(A4.l - A4.marge - 18, 3, 18, 7, 1.5, 1.5, "F"); police("bold", 10); coul(COUL.blanc); doc.text(num, A4.l - A4.marge - 9, 4.4, { baseline: "top", align: "center" }); }
         else { police("bold", 10); coul(opts.style === "moderne" ? COUL.blanc : P.accent); doc.text(num, A4.l - A4.marge, 5, { baseline: "top", align: "right" }); }
       }
       if (!suite) fondCote(36);
@@ -552,7 +572,7 @@ function genererPdf(opts, donnees) {
     const intertitre = (col, s) => { col.y += 1.5; texte(col, s.toUpperCase(), { taille: 10, style: "bold", c: GUIDE ? C0 : P.accent, apres: 2.5 }); };
 
     // Colonne principale : formations, puis accompagnement
-    const main = colonne(84, A4.l - 84 - A4.marge, 41, ctx);
+    const main = colonne(84, A4.l - 84 - A4.marge, 41, ctx); // bord droit aligné sur le filet et la pastille du titre
     intertitre(main, "Formations proposées");
     const forms = DONNEES.formations.filter(x => x.Fiche === f.id && x.Statut !== "Fermée");
     // CFA à plusieurs sites : formations regroupées par site (comme dans le catalogue d'origine), sinon par filière
@@ -566,7 +586,7 @@ function genererPdf(opts, donnees) {
       for (const x of l) {
         police("normal", 10);
         police("normal", 10.5);
-        const hauteur = doc.splitTextToSize(net(x.Intitule || ""), main.w - 5).length * lh(10.5) + (x.Remarque ? lh(9) : 0);
+        const hauteur = couper(fr(x.Intitule || ""), main.w - 5).length * lh(10.5) + (x.Remarque ? lh(9) : 0);
         place(main, hauteur); // la formation et sa remarque restent sur la même page
         if (main.idx !== pageGroupe) { titreGroupe(k + " (suite)"); pageGroupe = main.idx; } // groupe coupé : intitulé rappelé
         texte(main, x.Intitule || "", { taille: 10.5, retrait: 5, puce: "•", apres: 0.6 });
@@ -592,8 +612,8 @@ function genererPdf(opts, donnees) {
     for (const v of [f.Adresse, ville]) if (v) texte(cote, v, { taille: 9.5 });
     cote.y += 2;
     if (f.Telephone) texte(cote, "Tél. " + f.Telephone, { taille: 9.5 });
-    if (f.Mail) texte(cote, f.Mail, { taille: 9.5, c: P.lien });
-    if (f.Site_internet) texte(cote, f.Site_internet, { taille: 9.5, c: P.lien });
+    if (f.Mail) texte(cote, f.Mail, { taille: 9.5, c: P.lien, adresse: true });
+    if (f.Site_internet) texte(cote, f.Site_internet, { taille: 9.5, c: P.lien, adresse: true });
     const cts = DONNEES.contacts.filter(x => x.Fiche === f.id);
     if (cts.length) {
       cote.y += 6; intertitre(cote, cts.length > 1 ? "Contacts" : "Contact");
@@ -602,7 +622,7 @@ function genererPdf(opts, donnees) {
         if (x.Nom) texte(cote, x.Nom, { taille: 9.5, style: "bold" });
         if (x.Fonction) texte(cote, x.Fonction, { taille: 9, style: "italic", c: COUL.doux });
         if (x.Telephone) texte(cote, x.Telephone, { taille: 9.5 });
-        if (x.Mail) texte(cote, x.Mail, { taille: 9.5, c: P.lien });
+        if (x.Mail) texte(cote, x.Mail, { taille: 9.5, c: P.lien, adresse: true });
         cote.y += 4.5;
       }
     }
