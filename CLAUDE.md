@@ -3,13 +3,13 @@
 Fiches remplies chaque année par les établissements (CFA) : formations, modalités d'accompagnement,
 contacts et éléments administratifs (adresse, téléphone…).
 
-- **Règle d'or : ne lire aucune donnée personnelle, mais les reporter telles quelles.**
-  - Travailler sur la structure seulement (rubriques, intitulés de champs, mise en page) ;
-    ne jamais afficher ni recopier dans une réponse, un log, un test ou le code un nom, une adresse, un téléphone ou un mail.
-  - Transferts (vers Grist ou ailleurs) : par script, valeur par valeur, sans modification ni affichage ;
-    ne remonter que des comptes (ex. « 3 contacts, 12 formations reportés »).
-  - Contrôles : rempli / vide et format (mail valide, 10 chiffres…), jamais la valeur.
-  - Exemples et tests : données fictives uniquement ; aucune donnée réelle dans un dépôt.
+- **Données des fiches : lecture autorisée** (décision de l'utilisateur, novembre 2026). Ce sont des coordonnées et des
+  contacts administratifs d'établissements, publiés dans le catalogue en accès libre sur le site de l'académie :
+  on peut les lire et les afficher dans les échanges pour les vérifier et les corriger.
+- **Dépôt public : aucune donnée réelle.** Ni dans le code, ni dans les tests, ni dans les messages de commit, ni dans
+  les fichiers versionnés : exemples et tests avec des données fictives uniquement.
+- Les données réelles restent dans Grist ; les fichiers de travail (extractions, sauvegardes) restent dans l'espace
+  temporaire de la session, jamais dans le dépôt.
 
 ## Accords
 
