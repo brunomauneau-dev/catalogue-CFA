@@ -306,7 +306,7 @@ function ligne(f, s, close) {
   const e = etape(s);
   const pdfFourni = horsDep(nomDep(s)); // GRETA : fiche fournie en PDF
   const dateEtat = e === 2 ? (s.Soumise_le || s.Finalisee_le) : e === 1 ? s.Lien_envoye_le : null;
-  const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}${e < 2 && !destinataires(s).length ? `<span class="sous retard" title="Ni l'établissement ni ses contacts n'ont d'adresse mail">aucune adresse mail</span>` : ""}${(() => { if (pdfFourni || !window.contactAVerifier) return ""; const n = D.contacts.filter(c => c.Fiche === s.id && window.contactAVerifier(c)).length; return n ? `<span class="sous a-verif" title="Contacts repris du catalogue 2026 qui semblent mal lus : à faire vérifier par l'établissement">${pluriel(n, "contact")} à vérifier</span>` : ""; })()}`;
+  const etat = `<span class="etat-fiche e${e}${enRetard(s) ? " retard" : ""}">${esc(libEtape(e))}${dateEtat ? " · " + dateFr(dateEtat) : ""}</span>${enRetard(s) ? `<span class="sous retard">sans réponse depuis plus de 7 jours</span>` : ""}${s.Brouillon_le && e < 2 ? `<span class="sous en-cours">en cours de correction · ${dateFr(s.Brouillon_le)}</span>` : ""}${s.Brouillon_le && e === 2 && s.Soumise_le && s.Brouillon_le > s.Soumise_le + 60 ? `<span class="sous en-cours">corrigée après envoi · ${dateFr(s.Brouillon_le)}</span>` : ""}${e < 2 && !destinataires(s).length ? `<span class="sous retard" title="Ni l'établissement ni ses contacts n'ont d'adresse mail">aucune adresse mail</span>` : ""}${(() => { if (pdfFourni || !window.contactAVerifier) return ""; const n = D.contacts.filter(c => c.Fiche === s.id && window.contactAVerifier(c)).length; return n ? `<span class="sous a-verif" title="Contacts repris du catalogue 2026 qui semblent mal lus : à faire vérifier par l'établissement">${pluriel(n, "contact")} à vérifier</span>` : ""; })()}`;
   const ch = changements(s);
   // GRETA : la fiche est un PDF ; « reçue » = PDF de l'année déposé (bouton « Déposer le PDF »)
   const nbCh = pdfFourni ? (e === 2 ? `<span class="pill p-ok">PDF ${esc(CAMP_DE(s))} déposé</span>` : `<span class="sous">PDF de l'an dernier</span>`)
@@ -355,7 +355,8 @@ function detail(f, lecture) { // lecture : vue des campagnes closes (comparaison
 }
 
 // ---------- Mails (préparés dans la messagerie, jamais envoyés automatiquement) ----------
-function lienFiche(f) { return (CAMP.URL_formulaire || "") + (String(CAMP.URL_formulaire || "").includes("?") ? "&" : "?") + "Code_=" + encodeURIComponent(f.Code || ""); }
+// mode « intégré » de Grist (embed=true) : l'établissement ne voit que sa fiche, sans les menus ni les panneaux de Grist
+function lienFiche(f) { const u = String(CAMP.URL_formulaire || ""); return u + (u.includes("?") ? "&" : "?") + "Code_=" + encodeURIComponent(f.Code || "") + (/[?&]embed=/.test(u) ? "" : "&embed=true"); }
 // Destinataires : le mail de l'établissement, à défaut ceux de ses contacts (jamais affichés ici, seulement mis dans le mail)
 function destinataires(f) {
   if (String(f.Mail || "").trim()) return [String(f.Mail).trim()];

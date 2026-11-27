@@ -85,6 +85,15 @@ test("page", "envoi refusé si un format est faux ; « Rien n'a changé » envoi
   await sansErreur(q); await q.close();
 });
 
+test("page", "retour de l'établissement après une correction : bandeau de reprise au lieu de la question", async () => {
+  const p = await page("index.html", { q: "?demo=reprise" });
+  egal(await p.locator(".choix.reprise").count(), 1, "bandeau de reprise");
+  egal(await p.locator("[data-rien]").count(), 0, "pas de « Rien n'a changé » (il enverrait les corrections)");
+  verifier(/commencé à corriger votre fiche le/.test(await p.locator(".choix.reprise h2").innerText()), "date de la dernière correction");
+  egal(await p.locator(".choix.reprise [data-envoyer-page]").count(), 1, "bouton d'envoi dans le bandeau");
+  await capture(p, "page-reprise"); await sansErreur(p); await p.close();
+});
+
 // ---------------------------------------------------------------- formulaire classique (SAIO et lien « formulaire classique »)
 async function classique() { const p = await page("index.html"); await p.click("[data-classique]"); await p.waitForTimeout(200); return p; }
 test("classique", "mise en forme, plusieurs numéros, envoi bloqué puis accepté", async () => {
@@ -138,6 +147,16 @@ test("suivi", "mails : repli sur les contacts, fiche sans adresse signalée, phr
   verifier(u.includes("vérifier en particulier vos contacts"), "phrase sur les contacts");
   await p.evaluate(() => { D.contacts.filter(c => c.Fiche === 4).forEach(c => c.Mail = ""); D.fiches.find(x => x.id === 4).Lien_envoye_le = null; afficher(); });
   verifier((await p.locator(".sous.retard", { hasText: "aucune adresse mail" }).count()) === 1, "fiche sans adresse signalée");
+  await sansErreur(p); await p.close();
+});
+test("suivi", "lien du formulaire en mode intégré (embed=true) ; fiche « en cours de correction »", async () => {
+  const p = await page("suivi.html", { largeur: 1440 });
+  await p.evaluate(() => { window.__o = []; window.open = u => { window.__o.push(u); return null; }; });
+  await p.click("[data-envoyer]"); await p.waitForTimeout(200);
+  const corps = await p.evaluate(() => decodeURIComponent(window.__o[0]));
+  verifier(/Code_=[^&\s]+&embed=true/.test(corps), "lien avec Code_ et embed=true");
+  await p.evaluate(() => { const f = D.fiches.find(x => x.Etablissement === "CFA Démo B" && x.Campagne === (D.campagnes.find(c => c.Active) || {}).id); f.Brouillon_le = Date.now() / 1000; afficher(); });
+  egal(await p.locator(".sous.en-cours", { hasText: "en cours de correction" }).count(), 1, "repère « en cours de correction »");
   await sansErreur(p); await p.close();
 });
 test("suivi", "comparaison : doublons multi-sites, changement de site, action modifiée, décochée, nouvelle", async () => {

@@ -166,3 +166,4 @@ li:hover>.x,.ct:hover>.x,.x:focus{opacity:1}
   .choix{grid-template-columns:1fr}.page-fiche{padding:18px 16px}
   .cols-fiche{grid-template-columns:1fr}.x{opacity:1}
 }
+.choix.reprise{border-left:5px solid #C08400}

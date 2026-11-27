@@ -69,7 +69,7 @@ async function charger() {
 }
 
 function demo() {
-  FICHES = [{ id: 1, Presentation_accompagnement: "Le service accompagne les candidats dans leur recherche d'entreprise (texte fictif).", Etablissement: "CFA Exemple (démonstration)", Site: "Site de Villeneuve", Departement: "Dordogne", Adresse: "1 rue Imaginaire", Code_postal: "00000", Ville: "Villeneuve", Telephone: "05 00 00 00 00", Mail: "contact@exemple.fr", Site_internet: "www.exemple.fr", Message_CFA: "" }];
+  FICHES = [{ id: 1, Presentation_accompagnement: "Le service accompagne les candidats dans leur recherche d'entreprise (texte fictif).", Etablissement: "CFA Exemple (démonstration)", Site: "Site de Villeneuve", Departement: "Dordogne", Adresse: "1 rue Imaginaire", Code_postal: "00000", Ville: "Villeneuve", Telephone: "05 00 00 00 00", Mail: "contact@exemple.fr", Site_internet: "www.exemple.fr", Message_CFA: "", Brouillon_le: /reprise/.test(location.search) ? Date.UTC(2026, 11, 2) / 1000 : null }];
   if (INTEGRE) FICHES.push({ id: 2, Etablissement: "Autre CFA (démonstration)" }); // mode SAIO
   FICHE = FICHES[0];
   REF = [["CAP", "Maçon", "Bâtiment, Travaux publics"], ["CAP", "Couvreur", "Bâtiment, Travaux publics"], ["CAP", "Carreleur mosaïste", "Bâtiment, Travaux publics"], ["CAP", "Peintre applicateur de revêtements", "Bâtiment, Travaux publics"], ["CAP", "Cuisine", "Hôtellerie, Restauration"], ["Bac pro", "Métiers de l’accueil", "Commerce, Vente, Logistique"], ["CAP", "Maintenance des matériels, option C matériels d’espaces verts", "Automobile, Engins, Nautisme"]]
@@ -383,7 +383,12 @@ function afficherPage() {
       <div class="boutons-ajout"><button class="btn" data-valider-action>Ajouter l’action</button><button class="lien-btn" data-fermer-ajout>Annuler</button></div></div>`
     : `<button class="plus" data-plus="action">+ ajouter une action</button>`;
 
-  const choix = FICHE.Soumise_le
+  const reprise = !n && FICHE.Brouillon_le && (!FICHE.Soumise_le || FICHE.Brouillon_le > FICHE.Soumise_le + 60);
+  const choix = reprise
+    ? `<div class="choix reprise"><div><h2>${FICHE.Soumise_le ? `Vous avez corrigé votre fiche après l’avoir envoyée (dernière correction le ${dateFr(FICHE.Brouillon_le)}).` : `Vous avez commencé à corriger votre fiche le ${dateFr(FICHE.Brouillon_le)}.`}</h2>
+       <p>Vos corrections sont enregistrées. Relisez votre fiche ci-dessous, complétez-la si besoin, puis envoyez-la au SAIO${lim ? ` avant le ${lim}` : ""}.</p></div>
+       <button class="btn gros" data-envoyer-page>${FICHE.Soumise_le ? "Renvoyer ma fiche" : "Envoyer ma fiche"}</button></div>`
+    : FICHE.Soumise_le
     ? `<div class="choix envoye"><div><h2>Vous avez envoyé votre fiche le ${dateFr(FICHE.Soumise_le)}.</h2><p>Vous pouvez encore la corriger${lim ? ` jusqu’au ${lim}` : ""} : vos corrections sont enregistrées automatiquement. Cliquez ensuite sur « Renvoyer ma fiche ».</p></div></div>`
     : n ? `<div class="choix"><div><h2>Vous corrigez votre fiche</h2><p>Les textes modifiés sont en <span class="mod">jaune</span>, les ajouts en <span class="nouv">vert</span>, les retraits barrés (« ↶ remettre » pour annuler). Tout est enregistré automatiquement.</p></div></div>`
     : `<div class="choix"><div><h2>Votre fiche a-t-elle changé depuis l’an dernier ?</h2><p>Relisez-la ci-dessous, telle qu’elle paraîtra dans le catalogue.</p></div>
@@ -452,13 +457,14 @@ async function sauver(soumettre) {
   clearTimeout(MINUTERIE);
   if (EN_COURS) await EN_COURS.catch(() => {});
   const a = actions(soumettre), cibles = CIBLES.slice();
+  if (a.length && !soumettre && "Brouillon_le" in FICHE) a.push(["UpdateRecord", "Fiches", FICHE.id, { Brouillon_le: Date.now() / 1000 }]); // « en cours de correction »
   if (!a.length) { ETAT_SAUVE = ORIG && !nbModifs() ? ETAT_SAUVE : ""; majEtatSauve(); return true; }
   ETAT_SAUVE = "Enregistrement…"; majEtatSauve();
   const fin = r => {
     (r && r.retValues || []).forEach((v, k) => { const l = cibles[k]; if (!l) return;
       if (a[k][0] === "AddRecord") l.id = v; else { l.id = undefined; l._supprimee = true; } });
     if (!r) cibles.forEach((l, k) => { if (!l) return; if (a[k][0] === "AddRecord") l.id = -(Date.now() + k); else l.id = undefined; }); // démonstration
-    if (soumettre) FICHE.Soumise_le = Date.now() / 1000;
+    if (soumettre) FICHE.Soumise_le = Date.now() / 1000; else if ("Brouillon_le" in FICHE) FICHE.Brouillon_le = Date.now() / 1000;
     ORIG = copie({ fiche: FICHE, ...ETAT });
     ETAT_SAUVE = `Enregistré automatiquement à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`; majEtatSauve();
   };
