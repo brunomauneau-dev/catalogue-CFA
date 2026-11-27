@@ -116,3 +116,12 @@ fin dégradé bleu-lavande-menthe, bleu France, police Marianne (système de des
 ## Données
 
 Aucune donnée réelle (nom, adresse, téléphone, mail) dans ce dépôt public : elles restent dans Grist.
+
+## Tests
+
+`node tests/lancer.js` lance la batterie de tests sur les pages ouvertes hors de Grist (données de démonstration fictives) :
+formulaire « page du catalogue » et formulaire classique, suivi (filtres, dépliage, mails, comparaison, GRETA), catalogue
+(onglet et PDF complet vérifié avec `pdftotext`), affichage sans débordement en 390, 800 et 1440 px, sans erreur JavaScript,
+et comparaison des captures avec `tests/references/` (`tests/comparer.py`, Pillow). Un nom de groupe en argument
+(`node tests/lancer.js suivi`) ne lance que ce groupe. Après un changement d'affichage voulu : `--maj-references`.
+Prérequis : Node avec Playwright, Python 3 avec Pillow, `pdftotext` (poppler).
