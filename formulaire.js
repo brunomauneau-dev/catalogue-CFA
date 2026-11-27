@@ -71,8 +71,8 @@ function demo() {
     contacts: [{ id: 1, Fiche: 1, Fonction: "Bâtiment", Nom: "Prénom NOM", Telephone: "05 00 00 00 01", Mail: "contact1@exemple.fr" }],
     formations: [{ id: 1, Fiche: 1, Intitule: "CAP Maçon", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" },
                  { id: 2, Fiche: 1, Intitule: "CAP Couvreur", Filiere: "Bâtiment, Travaux publics", Statut: "Maintenue" }],
-    accomp: [{ id: 1, Fiche: 1, Groupe: "Avant la recherche", Action: "Entretien individuel", Cochee: true },
-             { id: 2, Fiche: 1, Groupe: "Événements", Action: "Job dating", Cochee: false }],
+    accomp: [{ id: 1, Fiche: 1, Groupe: "Candidature et entretien", Action: "Entretien individuel", Cochee: true },
+             { id: 2, Fiche: 1, Groupe: "Recherche d'entreprise", Action: "Job dating", Cochee: false }],
   };
   ORIG = copie({ fiche: FICHE, ...ETAT });
   afficher();
@@ -136,6 +136,8 @@ function pli(cle, titre, pastilles, corps) {
     <summary><span class="nomgrp">${esc(titre)}</span>${pastilles}</summary><div class="corps">${corps}</div></details>`;
 }
 
+const CATEGORIES_ACC = ["Information", "Candidature et entretien", "Découverte et immersion", "Recherche d'entreprise", "Signature du contrat et suivi", "Aides et conditions de formation", "Autres actions"];
+const rangAcc = g => { const i = CATEGORIES_ACC.indexOf(g); return i < 0 ? CATEGORIES_ACC.length : i; };
 function grouper(liste, cle) {
   const g = new Map();
   liste.forEach((l, i) => { if (l._suppr && !l.id) return; const k = l[cle] || "Autres"; if (!g.has(k)) g.set(k, []); g.get(k).push([l, i]); });
@@ -202,7 +204,8 @@ function afficher() {
       <button class="btn sec" id="ajoutFormation"${CHOIX ? "" : " disabled"}>Ajouter cette formation</button></div></section>`;
 
   // Accompagnement par groupe
-  const ga = grouper(ETAT.accomp, "Groupe");
+  // catégories d'accompagnement dans l'ordre du parcours du jeune (les autres à la suite)
+  const ga = new Map([...grouper(ETAT.accomp, "Groupe")].sort(([a], [b]) => rangAcc(a) - rangAcc(b)));
   const groupes = [...ga].map(([g, items]) => {
     const vis = items.filter(([l]) => !l._suppr);
     const corps = vis.map(([l, i]) => `<label class="coche"><input type="checkbox" data-coche="${i}"${l.Cochee ? " checked" : ""}>${esc(l.Action)}${!l.id ? ` <span class="pill new">Ajoutée</span>` : ""}</label>`).join("");
@@ -213,7 +216,8 @@ function afficher() {
     ${PRESENTATION in FICHE ? `<label class="champ${changeChamp("fiche", FICHE, PRESENTATION) ? " change" : ""}">Présentation de votre accompagnement (quelques lignes)
       <textarea data-t="fiche" data-i="0" data-c="${PRESENTATION}" rows="4">${esc(FICHE[PRESENTATION])}</textarea><span class="invalide"></span></label>` : ""}
     ${groupes}
-    <div class="nouvelle"><label class="champ">Autre action proposée<input id="nvAction" placeholder="Décrivez l'action"></label>
+    <div class="nouvelle"><label class="champ">Autre action proposée<input id="nvAction" placeholder="Décrivez l'action en une phrase courte"></label>
+      <label class="champ">Catégorie<select id="nvGroupe">${CATEGORIES_ACC.map(c => `<option${c === "Autres actions" ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
       <button class="btn sec" id="ajoutAction">Ajouter cette action</button></div></section>`;
 
   const envoi = SAIO() ? `<section class="carte"><h2>Modification par le SAIO</h2>
@@ -284,7 +288,8 @@ app.addEventListener("click", async e => {
   if (b.id === "changerFormation") { CHOIX = null; afficher(); const f = document.getElementById("nvFormation"); if (f) f.focus(); return; }
   if (b.id === "ajoutAction") {
     const v = document.getElementById("nvAction").value.trim(); if (!v) return;
-    ETAT.accomp.push({ Fiche: FICHE.id, Groupe: "Autres actions", Action: v, Cochee: true }); OUVERTS.add("acc:Autres actions"); return afficher();
+    const grp = (document.getElementById("nvGroupe") || {}).value || "Autres actions";
+    ETAT.accomp.push({ Fiche: FICHE.id, Groupe: grp, Action: v, Cochee: true }); OUVERTS.add("acc:" + grp); return afficher();
   }
   if (b.id === "enregistrer") return enregistrer(false);
   if (b.id === "enregistrerSaio") return enregistrer(false, true);
