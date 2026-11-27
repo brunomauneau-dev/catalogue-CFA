@@ -101,9 +101,21 @@ function controle(champ, v) {
   v = String(v ?? "").trim();
   if (!v) return "";
   if (/mail/i.test(champ) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Adresse mail incomplète";
-  if (/telephone/i.test(champ) && v.replace(/\D/g, "").length !== 10) return "10 chiffres attendus";
+  if (/telephone/i.test(champ) && v.split("/").some(t => t.replace(/\D/g, "").replace(/^33(?=\d{9}$)/, "0").length !== 10)) return "10 chiffres attendus (plusieurs numéros : séparez-les par « / »)";
+  if (champ === "Code_postal" && !/^\d{5}$/.test(v.replace(/\s/g, ""))) return "5 chiffres attendus";
   return "";
 }
+// Mise en forme commune (mêmes règles que la normalisation des fiches 2026) : la comparaison ne signale que les vrais changements
+function formater(champ, v) {
+  if (typeof v !== "string") return v;
+  let s = v.replace(/\s+/g, " ").trim();
+  if (/telephone/i.test(champ)) s = s.split("/").map(t => { const ch = t.replace(/\D/g, "").replace(/^33(?=\d{9}$)/, "0"); return /^0\d{9}$/.test(ch) ? ch.replace(/(\d{2})(?=\d)/g, "$1 ") : t.trim(); }).join(" / ");
+  else if (/mail/i.test(champ)) s = s.replace(/\s/g, "").toLowerCase();
+  else if (champ === "Site_internet") s = s.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+  else if (champ === "Code_postal") s = s.replace(/\s/g, "");
+  return s;
+}
+const TYPES = { Telephone: ' type="tel" inputmode="tel" autocomplete="tel"', Mail: ' type="email" inputmode="email" autocomplete="email"', Code_postal: ' inputmode="numeric" autocomplete="postal-code" maxlength="6"', Site_internet: ' inputmode="url"' };
 
 const libRef = r => (r.Diplome ? r.Diplome + " " : "") + r.Intitule;
 const trouverRef = v => REF.find(r => libRef(r).toLowerCase() === String(v).trim().toLowerCase());
@@ -114,7 +126,7 @@ function champ(table, idx, c, libelle, ligne) {
   const ch = changeChamp(table, ligne, c);
   const err = controle(c, v);
   return `<label class="champ${ch ? " change" : ""}">${esc(libelle)}
-    <input data-t="${table}" data-i="${idx}" data-c="${c}" value="${esc(v)}">
+    <input data-t="${table}" data-i="${idx}" data-c="${c}" value="${esc(v)}"${TYPES[c] || ""}>
     <span class="invalide">${esc(err)}</span></label>`;
 }
 
@@ -215,7 +227,7 @@ function afficher() {
       <button class="btn" id="envoyer">Envoyer ma fiche</button></div>
     <p class="etat">Rien n'a changé ? Cochez la case et envoyez la fiche telle quelle.</p></section>`;
 
-  app.innerHTML = `${choix}${bandeau("haut")}${FICHE && /^autre|^tous d/i.test(FICHE.Departement || "") ? `<p class="bandeau ok" style="margin-bottom:12px;font-size:15px">${SAIO() ? "Fiche fournie en PDF par l'établissement : déposez le PDF à jour dans la colonne « Document_fourni » de la table Fiches ; c'est lui qui figure dans le catalogue." : "Votre fiche figure dans le catalogue sous la forme du document PDF que vous transmettez au SAIO : envoyez-lui la version à jour par mail."}</p>` : ""}<p class="info">${fermee() ? "Fiche d'une campagne close, en consultation seule : elle sert de base de comparaison." : SAIO() ? "Mode SAIO : vous modifiez directement la fiche de l'établissement (par exemple à sa demande, par téléphone ou par mail), puis cliquez sur « Enregistrer les modifications » en bas de page." : "Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien."}</p>
+  app.innerHTML = `${choix}${bandeau("haut")}${FICHE && /^autre|^tous d/i.test(FICHE.Departement || "") ? `<p class="bandeau ok" style="margin-bottom:12px;font-size:15px">${SAIO() ? "Fiche fournie en PDF par l'établissement : déposez le PDF reçu avec « Déposer le PDF reçu » dans le suivi ; c'est lui qui figure dans le catalogue, tel quel." : "Votre fiche figure dans le catalogue sous la forme du document PDF que vous transmettez au SAIO : envoyez-lui la version à jour par mail."}</p>` : ""}<p class="info">${fermee() ? "Fiche d'une campagne close, en consultation seule : elle sert de base de comparaison." : SAIO() ? "Mode SAIO : vous modifiez directement la fiche de l'établissement (par exemple à sa demande, par téléphone ou par mail), puis cliquez sur « Enregistrer les modifications » en bas de page." : "Vos informations de l'an dernier sont déjà remplies. Modifiez seulement ce qui a changé, puis cliquez sur « Envoyer ma fiche ». Vous pouvez enregistrer et revenir plus tard avec le même lien."}</p>
     <div class="colonnes"><div class="cote"><section class="carte">${etab}</section><section class="carte">${blocContacts}</section></div>
     <div class="principal">${blocFormations}${blocAccomp}${envoi}</div></div>`;
   // Fiche d'une campagne close : consultation seule (base de comparaison)
@@ -253,6 +265,11 @@ app.addEventListener("change", e => {
   if (el.id === "certif") { CERTIF = el.checked; return; }
   if (el.id === "motif") { MOTIF = el.value; return; }
   if (el.dataset.coche !== undefined) { ETAT.accomp[+el.dataset.coche].Cochee = el.checked; afficher(); }
+  const { t, i, c } = el.dataset;
+  if (t && c && el.tagName === "INPUT") { // sortie du champ : mise en forme (téléphone 05 56 00 00 00, mail en minuscules…)
+    const v = formater(c, el.value);
+    if (v !== el.value) { el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); }
+  }
 });
 
 app.addEventListener("click", async e => {
@@ -272,6 +289,9 @@ app.addEventListener("click", async e => {
   if (b.id === "enregistrerSaio") return enregistrer(false, true);
   if (b.id === "envoyer") {
     if (!CERTIF) { MESSAGE = { cl: "err", txt: "Cochez la case de certification avant d'envoyer." }; return afficher(); }
+    if (!String(FICHE.Etablissement || "").trim()) { MESSAGE = { cl: "err", txt: "Indiquez le nom de l'établissement avant d'envoyer." }; return afficher(); }
+    const fautes = erreursFormat();
+    if (fautes) { MESSAGE = { cl: "err", txt: `${fautes} champ${fautes > 1 ? "s ont" : " a"} un format à corriger (signalé${fautes > 1 ? "s" : ""} en rouge). Vous pouvez aussi enregistrer et finir plus tard.` }; return afficher(); }
     return enregistrer(true);
   }
 });
@@ -289,11 +309,20 @@ function ajouterFormation() {
   afficher();
 }
 
+// Nombre de champs au format incorrect (fiche et contacts conservés)
+function erreursFormat() {
+  let n = CHAMPS_FICHE.filter(([c]) => controle(c, FICHE[c])).length;
+  for (const l of ETAT.contacts) if (!l._suppr) n += CHAMPS_CONTACT.filter(([c]) => controle(c, l[c])).length;
+  return n;
+}
+
 // ---------- Enregistrement dans Grist ----------
 const TABLES = { contacts: "Contacts", formations: "Formations", accomp: "Accompagnement" };
 const COLS = { contacts: ["Fonction", "Nom", "Telephone", "Mail"], formations: ["Intitule", "Filiere", "Statut", "Remarque", "Lieu"], accomp: ["Groupe", "Action", "Cochee"] };
 
 function actions(soumettre) {
+  for (const [c] of CHAMPS_FICHE) if (c in FICHE) FICHE[c] = formater(c, FICHE[c]);
+  for (const t of ["contacts", "formations"]) for (const l of ETAT[t]) for (const c of COLS[t]) if (c in l) l[c] = formater(c, l[c]);
   const a = [];
   const majFiche = {};
   for (const [c] of [...CHAMPS_FICHE, [PRESENTATION]]) if (c in FICHE && changeChamp("fiche", null, c)) majFiche[c] = FICHE[c];
@@ -315,10 +344,10 @@ async function enregistrer(soumettre, parSaio) {
   if (parSaio) {
     if (!a.length) { MESSAGE = { cl: "err", txt: "Aucune modification à enregistrer." }; return afficher(); }
     a.push(["AddRecord", "Correspondances", null, { Fiche: FICHE.id, Date: Math.floor(Date.now() / 86400000) * 86400, Type: "Note",
-      Objet: "Fiche modifiée par le SAIO", Resume: `${MOTIF ? MOTIF + " — " : ""}${a.length} modification(s) enregistrée(s)` }]);
+      Objet: "Fiche modifiée par le SAIO", Resume: `${MOTIF ? MOTIF + " — " : ""}${a.length} modification${a.length > 1 ? "s" : ""} enregistrée${a.length > 1 ? "s" : ""}` }]);
   }
   if (!DANS_GRIST) {
-    MESSAGE = { cl: "ok", txt: soumettre ? `Fiche envoyée au SAIO. Merci ! (démonstration : ${a.length} changement(s))` : `Enregistré (démonstration : ${a.length} changement(s)).` };
+    MESSAGE = { cl: "ok", txt: soumettre ? `Fiche envoyée au SAIO. Merci ! (démonstration : ${a.length} changement${a.length > 1 ? "s" : ""})` : `Enregistré (démonstration : ${a.length} changement${a.length > 1 ? "s" : ""}).` };
     afficher(); const h = document.getElementById("haut"); if (h) h.scrollIntoView({ block: "start" }); return;
   }
   try {
