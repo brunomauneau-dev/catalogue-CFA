@@ -26,7 +26,8 @@ const racine = INTEGRE ? INTEGRE.app : document; // écouteurs limités au catal
 async function charger() {
   if (!DANS_GRIST) return demo();
   const lire = n => grist.docApi.fetchTable(n).then(lignes).catch(() => []);
-  const [fi, fo, co, ac, ca, pa] = await Promise.all(["Fiches", "Formations", "Contacts", "Accompagnement", "Campagnes", "Pages_catalogue"].map(lire));
+  const [fi, fo, co, ac, ca, pa, pm] = await Promise.all(["Fiches", "Formations", "Contacts", "Accompagnement", "Campagnes", "Pages_catalogue", "Pdf_morceaux"].map(lire));
+  definirMorceaux(pm);
   D = { fiches: fi, formations: fo, contacts: co, accomp: ac, campagnes: ca, pages: pa };
   CAMP = (CAMP && ca.find(c => c.id === CAMP.id)) || ca.find(c => c.Active) || ca[ca.length - 1] || null;
   afficher();

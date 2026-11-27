@@ -30,7 +30,8 @@ const app = document.getElementById("app");
 async function charger() {
   if (!DANS_GRIST) return demo();
   const lire = n => grist.docApi.fetchTable(n).then(lignes).catch(() => []);
-  const [fi, fo, co, ac, cr, ca] = await Promise.all(["Fiches", "Formations", "Contacts", "Accompagnement", "Correspondances", "Campagnes"].map(lire));
+  const [fi, fo, co, ac, cr, ca, pm] = await Promise.all(["Fiches", "Formations", "Contacts", "Accompagnement", "Correspondances", "Campagnes", "Pdf_morceaux"].map(lire));
+  definirMorceaux(pm);
   D = { fiches: fi, formations: fo, contacts: co, accomp: ac, corresp: cr, campagnes: ca };
   choisirCampagne();
   afficher();

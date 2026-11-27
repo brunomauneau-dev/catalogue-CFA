@@ -214,7 +214,9 @@ test("catalogue", "PDF complet (données fictives riches) : pages, rubriques, ti
     const F = [], FO = [], CO = [], AC = []; let id = 1, fid = 1;
     const fiche = (Etablissement, Departement, extra = {}) => { const f = { id: fid++, Campagne: 1, Etablissement, Departement, Adresse: "12 avenue Fictive", Code_postal: "00000", Ville: "Villefictive", Telephone: "05 00 00 00 00", Finalisee_le: 1, ...extra }; F.push(f); return f; };
     const forms = (f, l) => l.forEach(([Intitule, Filiere, Lieu]) => FO.push({ id: id++, Fiche: f.id, Intitule, Filiere, Lieu: Lieu || "", Remarque: "", Statut: "Maintenue" }));
-    fiche("GRETA-CFA fictif", "Autre (Greta)", { PDF_depose: greta });
+    // PDF du GRETA stocké en morceaux (table Pdf_morceaux), comme les PDF de plus de 1 Mo
+    const gr = fiche("GRETA-CFA fictif", "Autre (Greta)"); const b64 = greta.split(",")[1], t = Math.ceil(b64.length / 3);
+    definirMorceaux([0, 1, 2].map(k => ({ id: 800 + k, Fiche: gr.id, Rang: 3 - k, Donnees: b64.slice((2 - k) * t, (3 - k) * t) })).reverse().reverse());
     ["Dordogne", "Gironde", "Landes", "Lot-et-Garonne", "Pyrénées-Atlantiques"].forEach(d => { for (let j = 0; j < 3; j++) { const f = fiche(`CFA fictif ${d} ${j + 1}${j === 0 ? " – Campus des métiers et des qualifications" : ""}`, d); forms(f, [["CAP Maçon", "Bâtiment, Travaux publics"], ["CAP Cuisine", "Hôtellerie, Restauration"]]); CO.push({ id: id++, Fiche: f.id, Nom: "Prénom NOM", Fonction: "Accueil" }); AC.push({ id: id++, Fiche: f.id, Action: "Entretien individuel", Cochee: true }); } });
     const multi = fiche("CFA fictif multi-sites", "Gironde"); forms(multi, ["Site A", "Site B"].flatMap(s => [["CAP Maçon", "Bâtiment, Travaux publics", s], ["CAP Couvreur", "Bâtiment, Travaux publics", s]]));
     const long = fiche("CFA fictif très complet", "Landes"); forms(long, Array.from({ length: 70 }, (_, i) => ["CAP Formation fictive " + (i + 1), ["Agriculture, Paysage, Forêt", "Industrie, Maintenance"][i % 2]]));
