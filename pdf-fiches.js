@@ -10,7 +10,7 @@ const nomDep = f => f.Departement || "Sans département";
 const horsDep = d => d === TOUS || /^autre/i.test(d); // établissements présents sur plusieurs départements (GRETA)
 const rangDep = d => (horsDep(d) ? 0 : 1);
 const ARTICLES = { "Dordogne": "de la", "Gironde": "de la", "Landes": "des", "Lot-et-Garonne": "du", "Pyrénées-Atlantiques": "des" };
-const libDep = d => (horsDep(d) ? "Tous départements" : ARTICLES[d] ? `Département ${ARTICLES[d]} ${d}` : d);
+const libDep = d => (horsDep(d) ? "Autre (Greta)" : ARTICLES[d] ? `Département ${ARTICLES[d]} ${d}` : d);
 const ordreDep = (a, b) => rangDep(a) - rangDep(b) || String(a).localeCompare(String(b), "fr");
 let DONNEES = null;
 
@@ -186,13 +186,22 @@ function genererPdf(opts, donnees) {
     for (const c of larg()) { if (c.t === "Page" && !avecPage) break; doc.text(c.t, x + 2.5, y + 1.9, { baseline: "top" }); x += c.w; }
     return y + 7;
   };
+  // nom du CFA sur deux lignes au plus (points de suspension au-delà) ; hauteur de ligne selon le nombre de lignes
+  const nomTableau = f => { police("normal", 9.5); const ls = doc.splitTextToSize(net(f.Etablissement || ""), larg()[2].w - 3); return ls.length > 2 ? [ls[0], ls[1].replace(/\s*\S*$/, "") + "..."] : ls; };
+  const hLigne = f => 6.6 + (nomTableau(f).length - 1) * 4.1;
   const ligneTableau = (y, f, i, page, pale = P.sectionPale) => {
-    if (i % 2) { doc.setFillColor(...pale); doc.rect(A4.marge, y, A4.l - 2 * A4.marge, 6.6, "F"); }
+    const h = hLigne(f), noms = nomTableau(f);
+    if (i % 2) { doc.setFillColor(...pale); doc.rect(A4.marge, y, A4.l - 2 * A4.marge, h, "F"); }
     police("normal", 9.5); coul(COUL.texte); let x = A4.marge; const c = larg();
-    const vals = [NUMS.get(f.id) || "", f.Ville || f.Site || "", f.Etablissement || "", page ? String(page) : ""];
-    vals.forEach((v, k) => { if (k === 3 && !page) return; doc.text(doc.splitTextToSize(net(v), c[k].w - 3)[0] || "", k === 3 ? x + c[k].w - 3 : x + 2.5, y + 1.8, { baseline: "top", align: k === 3 ? "right" : "left" }); x += c[k].w; });
-    if (page) doc.link(A4.marge, y, A4.l - 2 * A4.marge, 6.6, { pageNumber: page });
-    return y + 6.6;
+    const vals = [NUMS.get(f.id) || "", f.Ville || f.Site || "", null, page ? String(page) : ""];
+    vals.forEach((v, k) => {
+      if (k === 3 && !page) return;
+      if (k === 2) noms.forEach((l, j) => doc.text(l, x + 2.5, y + 1.8 + j * 4.1, { baseline: "top" }));
+      else doc.text(doc.splitTextToSize(net(v), c[k].w - 3)[0] || "", k === 3 ? x + c[k].w - 3 : x + 2.5, y + 1.8, { baseline: "top", align: k === 3 ? "right" : "left" });
+      x += c[k].w;
+    });
+    if (page) doc.link(A4.marge, y, A4.l - 2 * A4.marge, h, { pageNumber: page });
+    return y + h;
   };
 
   // Colonne de texte qui passe à la page suivante (pages partagées entre colonnes d'une même fiche).
@@ -299,7 +308,7 @@ function genererPdf(opts, donnees) {
       rub.forEach((d, i) => {
         doc.setFillColor(...CD(d)); doc.rect(A4.marge + 5 + i * w, 200, w - 2, 34, "F");
         police("bold", 16); coul(COUL.blanc); doc.text(codeDep(d), A4.marge + 8 + i * w, 204, { baseline: "top" });
-        police("normal", 7.5); doc.text(doc.splitTextToSize(net(horsDep(d) ? "Tous départements" : d), w - 7), A4.marge + 8 + i * w, 220, { baseline: "top" });
+        police("normal", 7.5); doc.text(doc.splitTextToSize(net(horsDep(d) ? "Autre (Greta)" : d), w - 7), A4.marge + 8 + i * w, 220, { baseline: "top" });
       });
     }
     police("bold", 11); coul(P.couvTitre); doc.text(doc.splitTextToSize(net(opts.bas || ""), A4.l - 2 * A4.marge - 10), A4.marge + 5, A4.h - 34, { baseline: "top" });
@@ -324,8 +333,23 @@ function genererPdf(opts, donnees) {
 
   // 3. Sommaire (pages réservées, remplies à la fin quand les numéros sont connus)
   const groupes = opts.groupes;
-  const nbLignes = groupes.reduce((n, [, l]) => n + 4 + l.length, 0); // bandeau + en-tête de tableau ≈ 4 lignes
-  const parPage = 30, nbSommaire = Math.max(1, Math.ceil(nbLignes / parPage)); // ≈ 34 lignes de 6,6 mm tiennent
+  const HAUT_SOMM = 40, ENTETE_RUB = 6 + 7.6 + 7; // sous le bandeau du catalogue (bandeauCatalogue(18) + 2) ; intitulé de rubrique + en-tête du tableau
+  // Mise en page du sommaire : renvoie, pour chaque rubrique, les pages où passent ses lignes (simulation ou tracé)
+  const planSommaire = () => {
+    const plan = []; let page = 0, y = HAUT_SOMM;
+    const saut = () => { page++; y = HAUT_SOMM; };
+    for (const [, l] of groupes) {
+      const hs = l.map(hLigne), total = ENTETE_RUB + hs.reduce((a, b) => a + b, 0);
+      const dispo = A4.bas - 2 - y, pleine = A4.bas - 2 - HAUT_SOMM;
+      const tient3 = ENTETE_RUB + hs.slice(0, 3).reduce((a, b) => a + b, 0);
+      if (y > HAUT_SOMM && (total > dispo && (total <= pleine || tient3 > dispo))) saut();
+      const rub = { page, lignes: [] }; y += ENTETE_RUB;
+      hs.forEach(h => { if (y + h > A4.bas - 2) { saut(); y += 7; } rub.lignes.push(page); y += h; });
+      plan.push(rub);
+    }
+    return { plan, pages: page + 1 };
+  };
+  const nbSommaire = planSommaire().pages;
   const debutSommaire = doc.getNumberOfPages() + 1;
   for (let i = 0; i < nbSommaire; i++) doc.addPage();
 
@@ -373,17 +397,24 @@ function genererPdf(opts, donnees) {
     const C0 = CD(nomDep(f));
     const enTete = (suite) => {
       ongletBord(nomDep(f));
-      const num = NUMS.get(f.id) || "", dep = horsDep(nomDep(f)) ? "Tous départements" : `Département : ${CODES_DEP[nomDep(f)] || nomDep(f)}`;
+      const num = NUMS.get(f.id) || "", dep = horsDep(nomDep(f)) ? "Autre (Greta)" : `Département : ${CODES_DEP[nomDep(f)] || nomDep(f)}`;
       if (opts.style === "moderne") {
         doc.setFillColor(...P.section); doc.rect(0, 0, A4.l, suite ? 16 : 30, "F");
         if (P.filet) { doc.setFillColor(...P.filet); doc.rect(0, suite ? 16 : 30, A4.l, 0.9, "F"); }
         coul(COUL.blanc);
       }
-      if (suite) { police("bold", 11); coul(opts.style === "moderne" ? COUL.blanc : P.accent); doc.text(doc.splitTextToSize(titre + " (suite)", A4.l - 2 * A4.marge - 30)[0], A4.marge, 6, { baseline: "top" }); }
+      if (suite) {
+        police("bold", 11); coul(opts.style === "moderne" ? COUL.blanc : GUIDE ? C0 : P.accent); doc.text(doc.splitTextToSize(titre + " (suite)", A4.l - 2 * A4.marge - 30)[0], A4.marge, 6, { baseline: "top" });
+        if (GUIDE) { doc.setFillColor(...C0); doc.rect(A4.marge, 14, A4.l - 2 * A4.marge - 6, 0.6, "F"); fondCote(20); }
+      }
       else {
         police("normal", 8.5); coul(opts.style === "moderne" ? COUL.blanc : COUL.doux); doc.text(net(dep), A4.marge, 5, { baseline: "top" });
-        police("bold", 17); coul(opts.style === "moderne" ? COUL.blanc : GUIDE ? C0 : P.accent); doc.text(doc.splitTextToSize(titre, A4.l - 2 * A4.marge - 30)[0], A4.marge, 10.5, { baseline: "top" });
-        police("normal", 10.5); coul(opts.style === "moderne" ? COUL.blanc : COUL.texte); doc.text(net(f.Site || ""), A4.marge, 19.5, { baseline: "top" });
+        const largT = A4.l - 2 * A4.marge - 30;
+        let tT = 17; police("bold", tT); let lT = doc.splitTextToSize(titre, largT);
+        if (lT.length > 1) { tT = 14; police("bold", tT); lT = doc.splitTextToSize(titre, largT); if (lT.length > 2) lT = [lT[0], lT[1].replace(/\s*\S*$/, "") + "..."]; }
+        coul(opts.style === "moderne" ? COUL.blanc : GUIDE ? C0 : P.accent);
+        lT.forEach((l, j) => doc.text(l, A4.marge, 10.5 + j * 5.6, { baseline: "top" }));
+        police("normal", 10.5); coul(opts.style === "moderne" ? COUL.blanc : COUL.texte); doc.text(net(f.Site || ""), A4.marge, lT.length > 1 ? 22 : 19.5, { baseline: "top" });
         if (opts.style !== "moderne") { doc.setFillColor(...(GUIDE ? C0 : P.accent)); doc.rect(A4.marge, 27, A4.l - 2 * A4.marge - (GUIDE ? 6 : 0), GUIDE ? 1.2 : 0.6, "F"); }
       }
       if (num) {
@@ -408,12 +439,14 @@ function genererPdf(opts, donnees) {
     if (!forms.length) texte(main, "Aucune formation renseignée.", { c: COUL.doux });
     for (const [k, l] of fil) {
       place(main, lh(10.5) * 3);
-      texte(main, "> " + k, { taille: 10.5, style: "bold", c: opts.style === "moderne" || GUIDE ? COUL.texte : P.section, apres: 0.8 });
+      const titreGroupe = s => texte(main, "> " + s, { taille: 10.5, style: "bold", c: opts.style === "moderne" || GUIDE ? COUL.texte : P.section, apres: 0.8 });
+      titreGroupe(k); let pageGroupe = main.idx;
       for (const x of l) {
         police("normal", 10);
         police("normal", 10.5);
         const hauteur = doc.splitTextToSize(net(x.Intitule || ""), main.w - 5).length * lh(10.5) + (x.Remarque ? lh(9) : 0);
         place(main, hauteur); // la formation et sa remarque restent sur la même page
+        if (main.idx !== pageGroupe) { titreGroupe(k + " (suite)"); pageGroupe = main.idx; } // groupe coupé : intitulé rappelé
         texte(main, x.Intitule || "", { taille: 10.5, retrait: 5, puce: "•", apres: 0.6 });
         if (x.Remarque) texte(main, x.Remarque, { taille: 9, style: "italic", c: COUL.doux, retrait: 5, apres: 0.6 });
       }
@@ -460,20 +493,19 @@ function genererPdf(opts, donnees) {
     let page = debutSommaire, y = 0;
     const nouvellePage = avecEnTete => { doc.setPage(page); y = bandeauCatalogue(18) + 2; };
     nouvellePage();
-    const reste = h => { if (y + h > A4.bas - 2) { if (page + 1 >= debutSommaire + nbSommaire) return false; page++; nouvellePage(); } return true; };
-    for (const e of numeros) {
-      if (!reste(7 + 7 + 6.6 + 6)) break;
+    const { plan } = planSommaire();
+    numeros.forEach((e, r) => {
+      const rub = plan[r]; if (!rub) return;
+      if (debutSommaire + rub.page !== page) { page = debutSommaire + rub.page; nouvellePage(); }
       y += 6; doc.setFillColor(...CD(e.dep)); doc.rect(A4.marge, y, A4.l - 2 * A4.marge, 7, "F");
       police("bold", 10.5); coul(COUL.blanc); doc.text(net(libDep(e.dep).toUpperCase()), A4.l / 2, y + 1.7, { align: "center", baseline: "top" });
       doc.link(A4.marge, y, A4.l - 2 * A4.marge, 7, { pageNumber: e.page });
       y += 7.6; y = enteteTableau(y, true, GUIDE ? CD(e.dep) : P.section); // couleur pleine : texte blanc bien contrasté
       e.fiches.forEach((x, i) => {
-        const avant = page;
-        if (!reste(6.6)) return;
-        if (page !== avant) y = enteteTableau(y, true, GUIDE ? CD(e.dep) : P.section); // tableau coupé : on répète l'en-tête
+        if (debutSommaire + rub.lignes[i] !== page) { page = debutSommaire + rub.lignes[i]; nouvellePage(); y = enteteTableau(y, true, GUIDE ? CD(e.dep) : P.section); } // tableau coupé : en-tête répété
         y = ligneTableau(y, x.f, i, x.page, GUIDE ? palir(CD(e.dep)) : P.sectionPale);
       });
-    }
+    });
   }
 
   // 6. Pieds de page
