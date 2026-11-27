@@ -1,6 +1,6 @@
 {
  "description": "Référentiel PROVISOIRE des intitulés de formations, inventé à partir des libellés du catalogue 2026 (aucune donnée personnelle). Il sera remplacé par la référence officielle du SAIO, complète : l'outil ne l'enrichit pas ; un intitulé non reconnu est à préciser avec l'établissement.",
- "version": "provisoire-2026-11",
+ "version": "provisoire-2026-11-b",
  "filieres": [
   "Agriculture, Paysage, Forêt",
   "Alimentation, Métiers de bouche",
@@ -18,12 +18,107 @@
  ],
  "intitules": [
   {
-   "diplome": "CAP",
-   "intitule": "Accompagnant éducatif petite enfance",
-   "filiere": "Services aux personnes, Santé",
+   "diplome": "Bac pro",
+   "intitule": "Aménagements paysagers",
+   "filiere": "Agriculture, Paysage, Forêt",
    "variantes": [
-    "AEPE",
-    "Accompagnant Educatif Petite Enfance"
+    "Agricole Aménagement Paysagers",
+    "Bac pro Aménagement paysagers"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Conduite de productions horticoles",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Conduite et gestion de l’entreprise agricole",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CGEA",
+    "Bac pro Conduite et gestion de l’entreprise agricole 2 options : grandes cultures ou polyculture élevage",
+    "Bac pro Conduite et gestion de l’entreprise agricole – polyculture élevage",
+    "Bac pro Conduite et gestion de l’entreprise agricole – support grandes cultures",
+    "Bac pro Conduite et gestion de l’entreprise agricole – support polyculture-elevage"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Conduite et gestion de l’entreprise hippique",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CGEH"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Conduite et gestion de l’entreprise vitivinicole",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CGEV",
+    "Conduite et Gestion de l'Entreprise Viti",
+    "Bac pro Conduite gestion entreprise vitivinicole"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Conchyliculture",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": []
+  },
+  {
+   "diplome": "CAPa",
+   "intitule": "Jardinier paysagiste",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CAP Agricole Jardinier Paysagiste",
+    "CAP Jardinier Paysagiste"
+   ]
+  },
+  {
+   "diplome": "CAPa",
+   "intitule": "Lad-cavalier d’entraînement",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CAP Agricole Lad Cavalier d'Entrainement"
+   ]
+  },
+  {
+   "diplome": "CAPa",
+   "intitule": "Métiers de l’agriculture",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CAP Agricole Métiers de l'Agriculture",
+    "CAPa Métiers de l’agriculture avec 3 options : grandes cultures, ruminants, horticulture et arboriculture",
+    "CAPa Métiers de l’agriculture grandes cultures",
+    "CAPa Métiers de l’agriculture valorisation du cheval",
+    "CAPa Métiers de l’agriculture – productions horticoles",
+    "CAPa Métiers de l’agriculture – spécialité grandes cultures – élevage",
+    "CAPa Métiers de l’agriculture – support grandes cultures, porc ou aviculture",
+    "CAPa Métiers de l’agriculture – vigne et vin",
+    "CAPa Métiers de l’agriculture, option horticulture",
+    "CAPa Métiers de l’agriculture, option polycultures élevages",
+    "CAPa Métiers de l’agriculture, option production animale et grandes culture",
+    "CAPa Métiers de l’agriculture, option viticulture"
+   ],
+   "precision": "support à préciser : vigne et vin, productions horticoles, grandes cultures…"
+  },
+  {
+   "diplome": "CAPa",
+   "intitule": "Palefrenier soigneur",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CAP Agricole Palefrenier Soigneur"
+   ]
+  },
+  {
+   "diplome": "CAPa",
+   "intitule": "Travaux forestiers",
+   "filiere": "Agriculture, Paysage, Forêt",
+   "variantes": [
+    "CAP Agricole Travaux Forestiers"
    ]
   },
   {
@@ -40,17 +135,13 @@
   },
   {
    "diplome": "CAP",
-   "intitule": "Pâtissier",
-   "filiere": "Alimentation, Métiers de bouche",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
    "intitule": "Charcutier-traiteur",
    "filiere": "Alimentation, Métiers de bouche",
    "variantes": [
     "Charcuterie Traiteur",
-    "Charcuterie-traiteur"
+    "Charcuterie-traiteur",
+    "CAP Charcuterie traiteur",
+    "CAP Charcuterie-traiteur"
    ]
   },
   {
@@ -58,7 +149,8 @@
    "intitule": "Chocolatier confiseur",
    "filiere": "Alimentation, Métiers de bouche",
    "variantes": [
-    "Chocolaterie Confiserie"
+    "Chocolaterie Confiserie",
+    "CAP Chocolaterie confiserie"
    ]
   },
   {
@@ -71,174 +163,205 @@
   },
   {
    "diplome": "CAP",
-   "intitule": "Cuisine",
-   "filiere": "Hôtellerie, Restauration",
+   "intitule": "Pâtissier",
+   "filiere": "Alimentation, Métiers de bouche",
    "variantes": []
   },
   {
    "diplome": "CAP",
-   "intitule": "Commercialisation et services en hôtel-café-restaurant",
-   "filiere": "Hôtellerie, Restauration",
+   "intitule": "Art et techniques de la bijouterie-joaillerie",
+   "filiere": "Artisanat d'art, Mode",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Cordonnier multiservice",
+   "filiere": "Artisanat d'art, Mode",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Ferronnier d’art",
+   "filiere": "Artisanat d'art, Mode",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Maroquinerie",
+   "filiere": "Artisanat d'art, Mode",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Métiers de la mode - vêtement flou",
+   "filiere": "Artisanat d'art, Mode",
    "variantes": [
-    "CSHCR",
-    "Commercialisation Services Hôtel-Café-Restaurant"
+    "Métiers de la Mode Vêtement Flou"
    ]
   },
   {
    "diplome": "CAP",
-   "intitule": "Production et service en restaurations (rapide, collective, cafétéria)",
-   "filiere": "Hôtellerie, Restauration",
+   "intitule": "Métiers de la mode - vêtement tailleur",
+   "filiere": "Artisanat d'art, Mode",
    "variantes": [
-    "PSR"
+    "Métiers de la Mode Vêtement Tailleur"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Sellerie générale",
+   "filiere": "Artisanat d'art, Mode",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Agroéquipement",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Maintenance des matériels, option A matériels agricoles",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Maintenance des matériels, option B matériels de construction et de manutention",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Maintenance des matériels, option C matériels d’espaces verts",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Maintenance des véhicules, option A voitures particulières",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": [
+    "Maintenance Véhicules opt. Véhicules légers",
+    "Bac pro Maintenance véhicules, option A voitures particulières"
    ]
   },
   {
    "diplome": "Bac pro",
-   "intitule": "Cuisine",
-   "filiere": "Hôtellerie, Restauration",
+   "intitule": "Maintenance des véhicules, option B véhicules de transport routier",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": []
   },
   {
    "diplome": "Bac pro",
-   "intitule": "Commercialisation et services en restauration",
-   "filiere": "Hôtellerie, Restauration",
+   "intitule": "Maintenance des véhicules, option C motocycles",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": []
   },
   {
    "diplome": "CAP",
-   "intitule": "Carreleur mosaïste",
-   "filiere": "Bâtiment, Travaux publics",
+   "intitule": "Carrossier automobile",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Maintenance des matériels, option A matériels agricoles",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": [
-    "Carreleur-Mosaïste"
+    "Maintenance des Matériels Opt. A Agricoles"
    ]
   },
   {
    "diplome": "CAP",
-   "intitule": "Charpentier bois",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Couvreur",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Électricien",
-   "filiere": "Bâtiment, Travaux publics",
+   "intitule": "Maintenance des matériels, option B matériels de construction et de manutention",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": [
-    "Electricien"
+    "CAP Maintenance de matériels, option B matériels de construction et de manutention"
    ]
   },
   {
    "diplome": "CAP",
-   "intitule": "Maçon",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Menuisier fabricant",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Menuisier installateur",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Menuisier aluminium-verre",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Métallier",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Métiers du plâtre et de l'isolation",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Monteur en installations sanitaires",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Monteur en installations thermiques",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Installateur en froid et conditionnement d'air",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Peintre applicateur de revêtements",
-   "filiere": "Bâtiment, Travaux publics",
+   "intitule": "Maintenance des matériels, option C matériels d’espaces verts",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": [
-    "Peintre-Applicateur de Revêtements"
+    "Maintenance des Matériels Opt. C Espaces Verts"
    ]
   },
   {
    "diplome": "CAP",
-   "intitule": "Constructeur d'ouvrages en béton armé",
-   "filiere": "Bâtiment, Travaux publics",
+   "intitule": "Maintenance des véhicules, option A voitures particulières",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": [
-    "Constructeur d'ouvrages en béton arme"
+    "Maintenance des Véhicules opt. Véhicules légers",
+    "MV VL"
    ]
   },
   {
    "diplome": "CAP",
-   "intitule": "Constructeur de routes et d'aménagements urbains",
-   "filiere": "Bâtiment, Travaux publics",
-   "variantes": [
-    "Constructeur de Routes et Aménagements Urbains"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Constructeur de réseaux de canalisations de travaux publics",
-   "filiere": "Bâtiment, Travaux publics",
+   "intitule": "Maintenance des véhicules, option B véhicules de transport routier",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": []
   },
   {
    "diplome": "CAP",
-   "intitule": "Conducteur d'engins : travaux publics et carrières",
-   "filiere": "Bâtiment, Travaux publics",
+   "intitule": "Maintenance des véhicules, option C motocycles",
+   "filiere": "Automobile, Engins, Nautisme",
    "variantes": [
-    "Conducteur engins : travaux publics et carrières"
+    "Maintenance des Véhicules opt. motocycles"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Maintenance nautique",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Peintre en carrosserie",
+   "filiere": "Automobile, Engins, Nautisme",
+   "variantes": [
+    "Peintre automobile",
+    "CAP Peintre automobile"
    ]
   },
   {
    "diplome": "Bac pro",
-   "intitule": "Métiers de l'électricité et de ses environnements connectés",
-   "filiere": "Bâtiment, Travaux publics",
+   "intitule": "Aviation générale",
+   "filiere": "Aéronautique",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Aéronautique, option avionique",
+   "filiere": "Aéronautique",
    "variantes": [
-    "MELEC",
-    "Métiers de l'Electricité et de ses Environnements"
+    "Aéronautique, opt. Avionique"
    ]
   },
   {
-   "diplome": "CAP",
-   "intitule": "Ébéniste",
+   "diplome": "Bac pro",
+   "intitule": "Aéronautique, option structure",
+   "filiere": "Aéronautique",
+   "variantes": [
+    "Aéronautique, opt. Structure"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Aéronautique, option systèmes",
+   "filiere": "Aéronautique",
+   "variantes": [
+    "Aéronautique, opt. Systèmes"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Technicien de scierie",
    "filiere": "Bois, Ameublement",
    "variantes": [
-    "Ebéniste"
+    "TS"
    ]
   },
   {
@@ -280,36 +403,262 @@
    "variantes": []
   },
   {
-   "diplome": "Bac pro",
-   "intitule": "Technicien de scierie",
+   "diplome": "CAP",
+   "intitule": "Ébéniste",
    "filiere": "Bois, Ameublement",
    "variantes": [
-    "TS"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Réalisations industrielles en chaudronnerie ou soudage",
-   "filiere": "Industrie, Maintenance",
-   "variantes": [
-    "Réalisation Industrielle en Chaudronnerie et Soudage",
-    "RICS"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Interventions en maintenance technique des bâtiments",
-   "filiere": "Industrie, Maintenance",
-   "variantes": [
-    "IMTB"
+    "Ebéniste"
    ]
   },
   {
    "diplome": "Bac pro",
-   "intitule": "Technicien en chaudronnerie industrielle",
-   "filiere": "Industrie, Maintenance",
+   "intitule": "Métiers de l’électricité et de ses environnements connectés",
+   "filiere": "Bâtiment, Travaux publics",
    "variantes": [
-    "TCI"
+    "MELEC",
+    "Métiers de l'Electricité et de ses Environnements"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Carreleur mosaïste",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": [
+    "Carreleur-Mosaïste"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Charpentier bois",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Conducteur d’engins : travaux publics et carrières",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": [
+    "Conducteur engins : travaux publics et carrières",
+    "CAP Conducteur engins : travaux publics et carrières"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Constructeur de routes et d’aménagements urbains",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": [
+    "Constructeur de Routes et Aménagements Urbains",
+    "CAP Constructeur de routes et aménagements urbains"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Constructeur de réseaux de canalisations de travaux publics",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Constructeur d’ouvrages en béton armé",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": [
+    "Constructeur d'ouvrages en béton arme"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Couvreur",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Installateur en froid et conditionnement d’air",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Maçon",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Menuisier aluminium-verre",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Menuisier fabricant",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Menuisier installateur",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Monteur en installations sanitaires",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Monteur en installations thermiques",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Métallier",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Métiers du plâtre et de l’isolation",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Peintre applicateur de revêtements",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": [
+    "Peintre-Applicateur de Revêtements"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Électricien",
+   "filiere": "Bâtiment, Travaux publics",
+   "variantes": [
+    "Electricien"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Esthétique cosmétique parfumerie",
+   "filiere": "Coiffure, Esthétique",
+   "variantes": [
+    "Esthétique, Cosmétique, Parfumerie"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Métiers de la coiffure",
+   "filiere": "Coiffure, Esthétique",
+   "variantes": [
+    "Coiffure"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Métiers de l’accueil",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Métiers du commerce et de la vente, option A animation et gestion de l’espace commercial",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": [
+    "MCV A"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Métiers du commerce et de la vente, option B prospection clientèle et valorisation de l’offre commerciale",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": [
+    "MCV B"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Technicien conseil vente en alimentation",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Technicien conseil vente en animalerie",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": [
+    "TCV"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Technicien conseil vente univers jardinerie",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": [
+    "TCV"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Fleuriste",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Opérateur/opératrice logistique",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": [
+    "Opérateur, Opératrice Logistique"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Équipier polyvalent du commerce",
+   "filiere": "Commerce, Vente, Logistique",
+   "variantes": [
+    "EPC",
+    "Equipier Polyvalent du Commerce"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Commercialisation et services en restauration",
+   "filiere": "Hôtellerie, Restauration",
+   "variantes": []
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Cuisine",
+   "filiere": "Hôtellerie, Restauration",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Commercialisation et services en hôtel-café-restaurant",
+   "filiere": "Hôtellerie, Restauration",
+   "variantes": [
+    "CSHCR",
+    "Commercialisation Services Hôtel-Café-Restaurant",
+    "CAP Commercialisation services hôtel-café-restaurant"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Cuisine",
+   "filiere": "Hôtellerie, Restauration",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Production et service en restaurations (rapide, collective, cafétéria)",
+   "filiere": "Hôtellerie, Restauration",
+   "variantes": [
+    "PSR",
+    "CAP Production et service en restaurations"
    ]
   },
   {
@@ -331,6 +680,14 @@
   },
   {
    "diplome": "Bac pro",
+   "intitule": "Technicien en chaudronnerie industrielle",
+   "filiere": "Industrie, Maintenance",
+   "variantes": [
+    "TCI"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
    "intitule": "Technicien en réalisation de produits mécaniques",
    "filiere": "Industrie, Maintenance",
    "variantes": [
@@ -338,265 +695,48 @@
    ]
   },
   {
-   "diplome": "CAP",
-   "intitule": "Maintenance des véhicules, option A voitures particulières",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": [
-    "Maintenance des Véhicules opt. Véhicules légers",
-    "MV VL"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Maintenance des véhicules, option C motocycles",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": [
-    "Maintenance des Véhicules opt. motocycles"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Maintenance des matériels, option A matériels agricoles",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": [
-    "Maintenance des Matériels Opt. A Agricoles"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Maintenance des matériels, option B matériels de construction et de manutention",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Maintenance des matériels, option C matériels d'espaces verts",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": [
-    "Maintenance des Matériels Opt. C Espaces Verts"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Carrossier automobile",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Peintre en carrosserie",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": [
-    "Peintre automobile"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Maintenance nautique",
-   "filiere": "Automobile, Engins, Nautisme",
+   "diplome": "Bac pro",
+   "intitule": "Technicien en réalisation de produits mécaniques, option réalisation et maintenance des outillages",
+   "filiere": "Industrie, Maintenance",
    "variantes": []
   },
   {
    "diplome": "Bac pro",
-   "intitule": "Maintenance des véhicules, option A voitures particulières",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": [
-    "Maintenance Véhicules opt. Véhicules légers"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Agroéquipement",
-   "filiere": "Automobile, Engins, Nautisme",
-   "variantes": []
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Aéronautique, option avionique",
-   "filiere": "Aéronautique",
-   "variantes": [
-    "Aéronautique, opt. Avionique"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Aéronautique, option structure",
-   "filiere": "Aéronautique",
-   "variantes": [
-    "Aéronautique, opt. Structure"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Aéronautique, option systèmes",
-   "filiere": "Aéronautique",
-   "variantes": [
-    "Aéronautique, opt. Systèmes"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Aviation générale",
-   "filiere": "Aéronautique",
+   "intitule": "Technicien en réalisation de produits mécaniques, option réalisation et suivi de productions",
+   "filiere": "Industrie, Maintenance",
    "variantes": []
   },
   {
    "diplome": "CAP",
-   "intitule": "Équipier polyvalent du commerce",
-   "filiere": "Commerce, Vente, Logistique",
+   "intitule": "Interventions en maintenance technique des bâtiments",
+   "filiere": "Industrie, Maintenance",
    "variantes": [
-    "EPC",
-    "Equipier Polyvalent du Commerce"
+    "IMTB"
    ]
   },
   {
    "diplome": "CAP",
-   "intitule": "Fleuriste",
-   "filiere": "Commerce, Vente, Logistique",
+   "intitule": "Réalisations industrielles en chaudronnerie ou soudage",
+   "filiere": "Industrie, Maintenance",
+   "variantes": [
+    "Réalisation Industrielle en Chaudronnerie et Soudage",
+    "RICS",
+    "CAP Réalisation industrielle en chaudronnerie et soudage"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Réalisations industrielles en chaudronnerie ou soudage, option A chaudronnerie",
+   "filiere": "Industrie, Maintenance",
+   "variantes": [
+    "CAP Réalisation industrielle en chaudronnerie et soudage, option A chaudronnerie"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Réalisations industrielles en chaudronnerie ou soudage, option B soudage",
+   "filiere": "Industrie, Maintenance",
    "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Opérateur/opératrice logistique",
-   "filiere": "Commerce, Vente, Logistique",
-   "variantes": [
-    "Opérateur, Opératrice Logistique"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Métiers du commerce et de la vente, option A animation et gestion de l'espace commercial",
-   "filiere": "Commerce, Vente, Logistique",
-   "variantes": [
-    "MCV A"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Métiers du commerce et de la vente, option B prospection clientèle et valorisation de l'offre commerciale",
-   "filiere": "Commerce, Vente, Logistique",
-   "variantes": [
-    "MCV B"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Métiers de l'accueil",
-   "filiere": "Commerce, Vente, Logistique",
-   "variantes": []
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Technicien conseil vente univers jardinerie",
-   "filiere": "Commerce, Vente, Logistique",
-   "variantes": [
-    "TCV"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Technicien conseil vente en animalerie",
-   "filiere": "Commerce, Vente, Logistique",
-   "variantes": [
-    "TCV"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Métiers de la coiffure",
-   "filiere": "Coiffure, Esthétique",
-   "variantes": [
-    "Coiffure"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Esthétique cosmétique parfumerie",
-   "filiere": "Coiffure, Esthétique",
-   "variantes": [
-    "Esthétique, Cosmétique, Parfumerie"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Agent d'accueil et de conduite routière, transport de voyageurs",
-   "filiere": "Services aux personnes, Santé",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Propreté et prévention des biocontaminations",
-   "filiere": "Services aux personnes, Santé",
-   "variantes": []
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Hygiène, propreté, stérilisation",
-   "filiere": "Services aux personnes, Santé",
-   "variantes": []
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Technicien en prothèse dentaire",
-   "filiere": "Services aux personnes, Santé",
-   "variantes": [
-    "Technicien prothèse dentaire"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Art et techniques de la bijouterie-joaillerie",
-   "filiere": "Artisanat d'art, Mode",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Ferronnier d'art",
-   "filiere": "Artisanat d'art, Mode",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Cordonnier multiservice",
-   "filiere": "Artisanat d'art, Mode",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Maroquinerie",
-   "filiere": "Artisanat d'art, Mode",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Sellerie générale",
-   "filiere": "Artisanat d'art, Mode",
-   "variantes": []
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Métiers de la mode - vêtement flou",
-   "filiere": "Artisanat d'art, Mode",
-   "variantes": [
-    "Métiers de la Mode Vêtement Flou"
-   ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Métiers de la mode - vêtement tailleur",
-   "filiere": "Artisanat d'art, Mode",
-   "variantes": [
-    "Métiers de la Mode Vêtement Tailleur"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Cybersécurité, informatique et réseaux, électronique",
-   "filiere": "Numérique, Gestion",
-   "variantes": [
-    "CIEL",
-    "Cybersécurité, Informatique & Réseaux"
-   ]
   },
   {
    "diplome": "Bac pro",
@@ -607,99 +747,22 @@
    ]
   },
   {
-   "diplome": "CAPa",
-   "intitule": "Jardinier paysagiste",
-   "filiere": "Agriculture, Paysage, Forêt",
+   "diplome": "Bac pro",
+   "intitule": "Cybersécurité, informatique et réseaux, électronique",
+   "filiere": "Numérique, Gestion",
    "variantes": [
-    "CAP Agricole Jardinier Paysagiste",
-    "CAP Jardinier Paysagiste"
+    "CIEL",
+    "Cybersécurité, Informatique & Réseaux",
+    "Bac pro Cybersécurité, informatique & réseaux, électronique"
    ]
   },
   {
-   "diplome": "CAPa",
-   "intitule": "Métiers de l'agriculture",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "CAP Agricole Métiers de l'Agriculture"
-   ],
-   "precision": "support à préciser : vigne et vin, productions horticoles, grandes cultures…"
-  },
-  {
-   "diplome": "CAPa",
-   "intitule": "Travaux forestiers",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "CAP Agricole Travaux Forestiers"
-   ]
-  },
-  {
-   "diplome": "CAPa",
-   "intitule": "Palefrenier soigneur",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "CAP Agricole Palefrenier Soigneur"
-   ]
-  },
-  {
-   "diplome": "CAPa",
-   "intitule": "Lad-cavalier d'entraînement",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "CAP Agricole Lad Cavalier d'Entrainement"
-   ]
-  },
-  {
-   "diplome": "CAPa",
-   "intitule": "Services aux personnes et vente en espace rural",
+   "diplome": "Bac pro",
+   "intitule": "Hygiène, propreté, stérilisation",
    "filiere": "Services aux personnes, Santé",
    "variantes": [
-    "SAPVER"
+    "Bac pro Hygiène propreté et stérilisation"
    ]
-  },
-  {
-   "diplome": "CAP",
-   "intitule": "Conchyliculture",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": []
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Aménagements paysagers",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "Agricole Aménagement Paysagers"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Conduite et gestion de l'entreprise agricole",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "CGEA"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Conduite et gestion de l'entreprise vitivinicole",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "CGEV",
-    "Conduite et Gestion de l'Entreprise Viti"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Conduite et gestion de l'entreprise hippique",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": [
-    "CGEH"
-   ]
-  },
-  {
-   "diplome": "Bac pro",
-   "intitule": "Conduite de productions horticoles",
-   "filiere": "Agriculture, Paysage, Forêt",
-   "variantes": []
   },
   {
    "diplome": "Bac pro",
@@ -707,7 +770,56 @@
    "filiere": "Services aux personnes, Santé",
    "variantes": [
     "SAPAT",
-    "Service Aux Personnes et Aux Territoires"
+    "Service Aux Personnes et Aux Territoires",
+    "Bac pro Service aux personnes et aux territoires",
+    "Bac pro Service à la personne et animations dans les territoires",
+    "Bac pro Services aux personnes et animation des territoires"
+   ]
+  },
+  {
+   "diplome": "Bac pro",
+   "intitule": "Technicien en prothèse dentaire",
+   "filiere": "Services aux personnes, Santé",
+   "variantes": [
+    "Technicien prothèse dentaire",
+    "Bac pro Technicien prothèse dentaire"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Accompagnant éducatif petite enfance",
+   "filiere": "Services aux personnes, Santé",
+   "variantes": [
+    "AEPE",
+    "Accompagnant Educatif Petite Enfance"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Agent d’accueil et de conduite routière, transport de voyageurs",
+   "filiere": "Services aux personnes, Santé",
+   "variantes": []
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Gestion des déchets et propreté urbaine",
+   "filiere": "Services aux personnes, Santé",
+   "variantes": [
+    "CAP Valorisation des matières et propreté des espaces urbains"
+   ]
+  },
+  {
+   "diplome": "CAP",
+   "intitule": "Propreté et prévention des biocontaminations",
+   "filiere": "Services aux personnes, Santé",
+   "variantes": []
+  },
+  {
+   "diplome": "CAPa",
+   "intitule": "Services aux personnes et vente en espace rural",
+   "filiere": "Services aux personnes, Santé",
+   "variantes": [
+    "SAPVER"
    ]
   }
  ],

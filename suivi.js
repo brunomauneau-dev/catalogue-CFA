@@ -22,7 +22,7 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": 
 const lignes = t => !t || !t.id ? [] : t.id.map((id, i) => { const r = { id }; for (const k in t) r[k] = t[k][i]; return r; });
 const maintenant = () => Date.now() / 1000;
 const dateFr = s => { if (!s) return ""; const d = new Date(s * 1000); return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }); };
-const norm = s => String(s ?? "").trim().toLowerCase();
+const norm = s => String(s ?? "").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim().toLowerCase(); // apostrophes et espaces indifférents
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 const app = document.getElementById("app");
 

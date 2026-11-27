@@ -118,7 +118,8 @@ function formater(champ, v) {
 const TYPES = { Telephone: ' type="tel" inputmode="tel" autocomplete="tel"', Mail: ' type="email" inputmode="email" autocomplete="email"', Code_postal: ' inputmode="numeric" autocomplete="postal-code" maxlength="6"', Site_internet: ' inputmode="url"' };
 
 const libRef = r => (r.Diplome ? r.Diplome + " " : "") + r.Intitule;
-const trouverRef = v => REF.find(r => libRef(r).toLowerCase() === String(v).trim().toLowerCase());
+const simple = s => String(s ?? "").replace(/[’‘]/g, "'").replace(/\s+/g, " ").trim().toLowerCase(); // apostrophe droite ou typographique
+const trouverRef = v => REF.find(r => simple(libRef(r)) === simple(v));
 
 // ---------- Affichage ----------
 function champ(table, idx, c, libelle, ligne) {
@@ -301,7 +302,7 @@ function ajouterFormation() {
   if (!ref) { document.getElementById("nvErreur").textContent = "Choisissez un intitulé dans la liste proposée (formation absente : signalez-la au SAIO)."; return; }
   const intitule = libRef(ref);
   const lieuNv = ((document.getElementById("nvLieu") || {}).value || "").trim();
-  if (ETAT.formations.some(l => !l._suppr && l.Intitule === intitule && String(l.Lieu || "").trim() === lieuNv)) { CHOIX = null; afficher(); document.getElementById("nvErreur").textContent = "Cette formation figure déjà dans la fiche."; return; }
+  if (ETAT.formations.some(l => !l._suppr && simple(l.Intitule) === simple(intitule) && String(l.Lieu || "").trim() === lieuNv)) { CHOIX = null; afficher(); document.getElementById("nvErreur").textContent = "Cette formation figure déjà dans la fiche."; return; }
   const lieu = (document.getElementById("nvLieu") || {}).value || "";
   ETAT.formations.push({ Fiche: FICHE.id, Intitule: intitule, Filiere: ref.Filiere || "Autres", Statut: "Nouvelle", Remarque: document.getElementById("nvRemarque").value.trim(), ...(lieu.trim() ? { Lieu: lieu.trim() } : {}) });
   OUVERTS.add("fil:" + (ref.Filiere || "Autres"));
